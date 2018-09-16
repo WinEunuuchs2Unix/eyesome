@@ -17,14 +17,14 @@ Remember to install it later using 'sudo apt install yad'.\n"
 
 # TODO: Put in check for inotify-tools after monitor-eyesome.sh created.
 
-cp -v ./eyesome.sh              /usr/local/bin/
-cp -v ./eyesome-cfg.sh          /usr/local/bin/
-cp -v ./eyesome-src.sh          /usr/local/bin/
-cp -v ./eyesome-sun.sh          /usr/local/bin/
-cp -v ./wake-eyesome.sh         /usr/local/bin/
-cp -v ./start-eyesome           /etc/cron.d/
-cp -v ./daily-eyesome-sun       /etc/cron.daily/
-cp -v ./systemd-wake-eyesome    /lib/systemd/system-sleep/
+install -v ./eyesome.sh             /usr/local/bin/
+install -v ./eyesome-cfg.sh         /usr/local/bin/
+install -v ./eyesome-src.sh         /usr/local/bin/
+install -v ./eyesome-sun.sh         /usr/local/bin/
+install -v ./wake-eyesome.sh        /usr/local/bin/
+install -v ./start-eyesome          /etc/cron.d/
+install -v ./daily-eyesome-sun      /etc/cron.daily/
+install -v ./systemd-wake-eyesome   /lib/systemd/system-sleep/
 
 exit 0
 
