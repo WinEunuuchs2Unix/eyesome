@@ -1,0 +1,7 @@
+#!/bin/sh
+#
+# Each day /etc/cron.daily/sun-hours will get sunrise and sunset times.
+
+sleep 60 # give time for network to come up.
+/usr/local/bin/eyesome-sun.sh
+
