@@ -242,9 +242,9 @@ TestBrightness () {
     [[ $TestSeconds == "" ]] || [[ $TestSeconds == 0 ]] && TestSeconds=5
     SleepSec=$(bc <<< "scale=6; $TestSeconds/100")
 
-    for (( i=0; i<100; i++ )) ; do # 100 interations of sleep .05
-        echo $i
-        [[ $i == 1 ]] && echo "$line"   # one time dump of aAllMon[*] array
+    for (( i=0; i<100; i++ )) ; do      # 100 interations of sleep .xxx
+        echo $i                         # Percent complete for progress bar
+        [[ $i == 1 ]] && echo "$line"   # dump aAllMon[*] array to progess log
         [[ $i -gt 100 ]] && break
         sleep "$SleepSec"
 
@@ -314,13 +314,13 @@ Do not enter the seconds, just the hours, minutes followed by am
 or pm.  For example '8:37 am' for sunrise and '10:22 pm' for
 sunset.:LBL" \
             --button="_Retrieve:$ButnRetrieve" \
-            --button="_Quit:$ButnQuit" \
+            --button="_Cancel:$ButnQuit" \
             2>/dev/null)
 
         Retn="$?"
 
         if [[ $Retn == "$ButnRetrieve" ]] ; then
-# TODO: Move to /usr/local/bin            $EyesomeSunProgram "nosleep"
+# TODO: Use $EyesomeSunProgram variable
             eyesome-sun.sh nosleep
             [[ "$?" == 0 ]] && return 0     # Success
             continue                        # Loop and offer another try
@@ -364,18 +364,19 @@ which calls the bash script: '$EyesomeDaemon'.
 Check of running processes reveals that '$EyesomeDaemon'
 is not running.
 
-Click the <b><i>Start</i></b> button below to start '$EyesomeDaemon'.
+If you just installed eyesome and haven't rebooted your
+computer yet, then this is to be expected.
 
-:LBL" \
+Click the <b><i>Start</i></b> button below to start '$EyesomeDaemon'.:LBL" \
             --button="_Start:$ButnStart" \
-            --button="_Quit:$ButnQuit" \
+            --button="_Cancel:$ButnQuit" \
             2>/dev/null)
 
         Retn="$?"
         
         if [[ $Retn == "$ButnStart" ]] ; then
-# TODO: Move to /usr/local/bin            nohup $EyesomeDaemon
-            (./eyesome.sh &) &            # start deamon as background task
+# TODO: Use $EyesomeDaemon variable
+            (eyesome.sh &) &            # start deamon as background task
             sleep .25                        # .5 to allow daemon to sleep
         else
             return 1                        # Quit

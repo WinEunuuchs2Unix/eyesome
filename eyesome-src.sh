@@ -72,12 +72,10 @@ GetMonitorWorkSpace () {
     MonDayRed="${CfgArr[$((i++))]}"          # yad uses 6 decimal places. Gamma
     MonDayGreen="${CfgArr[$((i++))]}"        # broken down between Red:Green:Blue
     MonDayBlue="${CfgArr[$((i++))]}"         # built into single string
-    MonDayGamma="$MonDayRed:$MonDayGreen:$MonDayBlue"
     MonNgtBrightness="${CfgArr[$((i++))]}"
     MonNgtRed="${CfgArr[$((i++))]}"
     MonNgtGreen="${CfgArr[$((i++))]}"
     MonNgtBlue="${CfgArr[$((i++))]}"
-    MonNgtGamma="$MonNgtRed:$MonNgtGreen:$MonNgtBlue"
     MonCurrBrightness="${CfgArr[$((i++))]}"
     MonCurrGamma="${CfgArr[$((i++))]}"
     # 4 spare fields
@@ -92,17 +90,6 @@ SetMonitorWorkSpace () {
     # $1 = CfgArr Starting Index Number
     i=$1
 
-    DayIncrRed=true
-    DayIncrGreen=true
-    DayIncrBlue=true
-    
-    # Sanity checks. Minimum <= Maximum
-#    [[ "$MonDayBrightness" < "$MonNgtBrightness" ]] && \
-#        MonNgtBrightness=$MonDayBrightness
-    [[ "$MonDayRed" < "$MonNgtRed" ]] && DayIncrRed=false
-    [[ "$MonDayGreen" < "$MonNgtGreen" ]] && DayIncrGreen=false
-    [[ "$MonDayBlue" < "$MonNgtBlue" ]] && DayIncrBlue=false
-        
     CfgArr[$((i++))]="$MonNumber"           # "1", "2" or "3"
     CfgArr[$((i++))]="$MonStatus"           # "Enabled" / "Disabled"
     CfgArr[$((i++))]="$MonType"             # "Hardware" / "Software"
@@ -329,24 +316,23 @@ WriteConfiguration () {
 CalcNew () {
 
     # Sets NewReturn to new value
-    # Parm: 1= Value 1 (9999.999999)
-    #       2= Value 2 (9999.999999)
-    #       3= Factor .999999 in six decimals
+    # Parm: 1= Source Value (9999.999999)
+    #       2= Target Value (9999.999999)
+    #       3= Progress .999999 in six decimals
 
     st=$(echo "$1 < $2" | bc)
 
     if [[ $st -eq 1 ]] ; then
-        # $1 < $2
+        # Target >= Source
         Diff=$( bc <<< "scale=6; $2 - $1" )
         Diff=$( bc <<< "scale=6; $Diff * $3" )
-        NewReturn=$( bc <<< "scale=6; $1 + $Diff" )
+        NewReturn=$( bc <<< "scale=6; $2 - $Diff" )
     else
-        # $1 >= $2
+        # Target < Source
         Diff=$( bc <<< "scale=6; $1 - $2" )
         Diff=$( bc <<< "scale=6; $Diff * $3" )
         NewReturn=$( bc <<< "scale=6; $2 + $Diff" )
     fi
-echo "Diff: $Diff"
 
 } # CalcNew
 
@@ -362,7 +348,9 @@ CalcBrightness () {
     # Values may be going up or going down. Calc difference based on %
 
     if [[ $1 == Day ]]; then
+        # Transitioning to Daytime
         if [[ -z "$2" ]]; then
+            # Parameter 2 is empty (no adjustment percentage)
             NewGamma="$MonDayRed:$MonDayGreen:$MonDayBlue"
             NewBright="$MonDayBrightness"
         else
@@ -378,11 +366,13 @@ CalcBrightness () {
             NewBright=$NewReturn
         fi
     else
+        # Transitioning to Nighttime
         if [[ -z "$2" ]]; then
             NewGamma="$MonNgtRed:$MonNgtGreen:$MonNgtBlue"
             NewBright="$MonNgtBrightness"
         else
-            CalcNew $MonDaytRed $MonNgtRed $2
+            # Parameter 2 passed. Use it as adjustment factor.
+            CalcNew $MonDayRed $MonNgtRed $2
             NewRed=$NewReturn
             CalcNew $MonDayGreen $MonNgtGreen $2
             NewGreen=$NewReturn
@@ -394,9 +384,6 @@ CalcBrightness () {
             NewBright=$NewReturn
         fi
     fi
-            
-#echo "NewGamma: $NewGamma"
-#echo "NewBrightness: $NewBright"
 
 } # CalcBrightness
 
@@ -442,20 +429,23 @@ SetBrightness () {
             
             IntBrightness=${NewBright%.*}
             bash -c "echo $IntBrightness | sudo tee $backlight" > /dev/null
+
+            [[ $MonNumber == "1" ]] && echo "$IntBrightness" > \
+                                            "$CurrentBrightnessFilename"
+            MonCurrBrightness="$IntBrightness"
         else
             # Software brightness control
             Brightness=$(printf %.2f $NewBright)
+            [[ $MonNumber == "1" ]] && echo "$Brightness" > \
+                                            "$CurrentBrightnessFilename"
+            MonCurrBrightness="$Brightness"
         fi
         
         xRetn=$(xrandr --output $MonXrandrName --gamma $Gamma \
                 --brightness $Brightness)
 
-#TODO: Monitor1CurrBrightness test & set for eyesome.sh to write out to
-#       /tmp/display-current-brightness file
-
-        MonCurrBrightness=$Brightness
-        MonCurrGamma=$Gamma
-        SetMonitorWorkSpace $MonNdx
+        MonCurrGamma="$Gamma"
+        SetMonitorWorkSpace "$MonNdx"
 
     done
     
