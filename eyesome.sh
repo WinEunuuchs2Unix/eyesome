@@ -55,8 +55,14 @@ while true ; do
     # Is it night time?
     if [[ $secNow -gt $secSunset ]] || [[ $secNow -lt $secSunrise ]]; then
         # It's Night; after sunset or before sunrise nightime setting
-        # Sleep until sunrise
-        SleepUntilDay=$(( secNow - secSunrise ))
+        if [[ $secNow -gt $secSunrise ]]; then
+            # Sleep until sunrise tomorrow
+            SleepUntilDay=$(( secSunrise + 86400 - secNow ))
+        else
+            # Sleep until sunrise today
+            SleepUntilDay=$(( secSunrise - secNow ))
+        fi
+
      	SetBrightness Ngt        # Same function used by eyesome-cfg.sh
      	sleep "$SleepUntilDay"
     	continue
