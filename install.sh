@@ -136,7 +136,7 @@ Main () {
 
     [[ "$1" != "" ]] && Help            # exits
        
-    if [[ ! $(command -v yaasdfd >/dev/null 2>&1) ]]; then
+    if [[ ! $(command -v yad >/dev/null 2>&1) ]]; then
         echo " \
 
 yad package is required for eyesome but it is not installed.
