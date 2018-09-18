@@ -1,0 +1,9 @@
+40b10f1b46b7d0984d847fa18009b0e7  install.sh
+f531916da79b4d8928b4d832acffd94c  eyesome.sh
+c6eb1c06630f6670f7f526691af0075b  eyesome-cfg.sh
+3a25f3c77eeeddde1aec4f4ce48ca237  eyesome-src.sh
+5696a30041b2e0b20a241cfe95a4fba8  eyesome-sun.sh
+04c193ea936a1e03cd237e6b1a871430  wake-eyesome.sh
+712eff1f4ec14fbf04521674c32aa5b8  start-eyesome
+0cdc4dbb0a383cd97f1e6d0744a6f8e4  daily-eyesome-sun
+039e75c8cea2b73c85b9acec54c952fe  systemd-wake-eyesome
