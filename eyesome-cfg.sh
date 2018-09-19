@@ -5,9 +5,27 @@
 # DESC: Configuration for eyessome.sh's min/max values, sun rise/set time
 #       and transition minutes.
 # CALL: Called from terminal with `sudo` permissions.
-# DATE: Feb 17, 2017. Modified: Sep xx, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 18, 2018.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
+
+if [[ $(id -u) != 0 ]]; then # root powers needed to call this script
+    echo >&2 $0 must be called with sudo powers
+    exit 1
+fi
+
+# Must have the yad package.
+command -v yad >/dev/null 2>&1 || { echo >&2 \
+        "yad package required but it is not installed.  Aborting."; \
+        exit 2; }
+
+# $TERM variable may be missing when called via desktop shortcut
+CurrentTERM=$(env | grep TERM)
+if [[ $CurrentTERM == "" ]] ; then
+    notify-send --urgency=critical \
+    "$0 cannot be run from GUI without TERM environment variable."
+    exit 1
+fi
 
 # Read configuration and create if it doesn't exist.
 ReadConfiguration
@@ -175,10 +193,11 @@ transition if testing after sunrise and before sunset.:
 
 MainMenu () {
 
-    SecondsToUpdate=$(wake-eyesome.sh post remain nosleep remain)
+    SecondsToUpdate=$("$WakeEyesome" post remain nosleep remain)
 
-    # Blowout protection
+    # Blowout protection blank, 0 or negative (bug)
     [[ $SecondsToUpdate == "" ]] || [[ $SecondsToUpdate == 0 ]] \
+        || [[ $SecondsToUpdate == -* ]] \
         && SecondsToUpdate="${CfgArr[$CFG_SLEEP_NDX]%.*}"
 
     NextDate=$(date --date="$SecondsToUpdate seconds") # Sleep seconds Epoch
@@ -186,7 +205,7 @@ MainMenu () {
     LastCheckTime=$(date +'%I:%M:%S %p') # Now
 # --image-on-top
     Dummy=$(yad  --form \
-        --image=preferences-desktop-screensaver  \
+        --image=preferences-desktop-screensaver --image-on-top \
         --window-icon=preferences-desktop-screensaver \
         --margins=10 \
         --title="eyesome setup" \
@@ -198,7 +217,7 @@ MainMenu () {
         --field="
 
 This window will auto refresh when the brightness level
-is checked on your monitor(s). 
+is checked on your monitor(s).
 
 Click the <b><i>Refresh</i></b> button below to refresh how many seconds
 remain until the next auto refresh.
@@ -257,7 +276,7 @@ TestBrightness () {
         --no-cancel             --center \
         --bar=RTL               2>/dev/nul
     
-    wake-eyesome.sh post TestBrightness nosleep # $4 remaining sec not used
+    "$WakeEyesome" post TestBrightness nosleep # $4 remaining sec not used
     sleep .25    # Give eyesome daemon time to wakeup & sleep before main menu
 
 } # TestBrightness

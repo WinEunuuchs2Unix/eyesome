@@ -5,26 +5,7 @@
 # DESC: Source (include) file for eyessome.sh, eyesome-sun.sh, eyesome-cfg.sh
 # CALL: Include at program top with `. eyesome-src` or `source eyesome-src`.
 # NOTE: You do not have to specify directory because $PATH is searched.
-# DATE: Feb 17, 2017. Modified: Sep xx, 2018.
-
-
-if [[ $(id -u) != 0 ]]; then # root powers needed to call this script
-    echo >&2 $0 must be called with sudo powers
-    exit 1
-fi
-
-# Must have the yad package.
-command -v yad >/dev/null 2>&1 || { echo >&2 \
-        "yad package required but it is not installed.  Aborting."; \
-        exit 2; }
-
-# $TERM variable may be missing when called via desktop shortcut
-CurrentTERM=$(env | grep TERM)
-if [[ $CurrentTERM == "" ]] ; then
-    notify-send --urgency=critical \
-    "$0 cannot be run from GUI without TERM environment variable."
-    exit 1
-fi
+# DATE: Feb 17, 2017. Modified: Sep 18, 2018.
 
 OLD_IFS=$IFS
 IFS="|"

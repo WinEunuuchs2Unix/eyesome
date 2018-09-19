@@ -4,9 +4,9 @@
 # PATH: /lib/systemd/system-sleep/
 # DESC: Restart display brightness when resuming from suspend
 # CALL: Automatically called when system goes to sleep and wakes up
-# DATE: August 2017. Modified: September ??, 2018.
+# DATE: August 2017. Modified: September 18, 2018.
 
 # NOTE: Wrapper script
 
-wake-eyesome.sh     # should be in path /usr/local/bin
+/usr/local/bin/wake-eyesome.sh
 exit 0

@@ -9,11 +9,9 @@
 #       Called from /lib/systemd/system-sleep/wake-eyesome.sh during resume.
 #       Called from eyesome-cfg.sh after 5 second Daytime/Nighttime tests.
 
-# DATE: Feb 17, 2017. Modified: Sep xx, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 18, 2018.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
-
-re='^[0-9]+$'   # regex for valid numbers
 
 CalcShortSleep () {
 
@@ -24,17 +22,10 @@ CalcShortSleep () {
 
     Percent=$( bc <<< "scale=6; ( $3 / $2 )" )
 
-# TODO: .997222 was rejected below
-#    if ! [[ $Percent =~ $re ]] ; then
-#        echo "Percent invalid: $Percent"
-#        Percent=0   # When we get to last minute $Adjust can be non-numeric
-#    fi
-
     SetBrightness "$1" "$Percent"
     sleep "$UpdateInterval"
 
 } # CalcShortSleep
-
 
 main () {
 

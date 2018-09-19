@@ -3,7 +3,7 @@
 # NAME: install.sh
 # PATH: Current directory where files downloaded from github
 # DESC: Copy eyesome scripts / command files to target directories
-# DATE: September ?? 2018.
+# DATE: September 18 2018.
 
 # PARM: $1=dev developer mode, publish files
 #         =rm  remove files
@@ -136,7 +136,7 @@ Main () {
 
     [[ "$1" != "" ]] && Help            # exits
        
-    if [[ ! $(command -v yad >/dev/null 2>&1) ]]; then
+    if [[ $(command -v yad) == "" ]]; then
         echo " \
 
 yad package is required for eyesome but it is not installed.

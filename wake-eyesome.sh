@@ -7,7 +7,7 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Sepetmber ??, 2018.
+# DATE: August 2017. Modified: Sepetmber 18, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "suspend" or "hibernate"
@@ -44,6 +44,8 @@ case $1/$2 in
     # Are we just getting time remaining and not waking up?
     if [[ "$4" == "remain" ]] ; then
         if [[ $pID != "" ]]; then
+            # Warning returned value can be negative:
+            # https://unix.stackexchange.com/questions/314512/how-to-determine-the-amount-of-time-left-in-a-sleep#comment786223_314777
             ps -o etime= -o args= -p "$pID" | perl -MPOSIX -lane '
                 %map = qw(d 86400 h 3600 m 60 s 1);
                 $F[0] =~ /(\d+-)?(\d+:)?(\d+):(\d+)/;
