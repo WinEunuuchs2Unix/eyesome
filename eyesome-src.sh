@@ -5,7 +5,7 @@
 # DESC: Source (include) file for eyessome.sh, eyesome-sun.sh, eyesome-cfg.sh
 # CALL: Include at program top with `. eyesome-src` or `source eyesome-src`.
 # NOTE: You do not have to specify directory because $PATH is searched.
-# DATE: Feb 17, 2017. Modified: Sep 18, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 20, 2018.
 
 OLD_IFS=$IFS
 IFS="|"
@@ -99,7 +99,6 @@ InitXrandrArray () {
     # Save time to search on connected/disconnected, primary monitor,
     # brightness level, gamma level.
 
-    #readarray aXrandr <<< $(xrandr --verbose --current)
     mapfile -t aXrandr < <(xrandr --verbose --current)
     
 } # InitXrandrArray
@@ -120,7 +119,6 @@ SearchXrandrArray () {
     for (( i=0; i<"${#aXrandr[*]}"; i++ )) ; do
 
         line="${aXrandr[$i]}"
-        
         # Have we looped to next monitor and not found search string?
         if [[ "$line" =~ " connected " ]] && [[ $fNameFnd == true ]] ; then
             break
@@ -165,8 +163,6 @@ CreateConfiguration () {
     for ((i=0; i<=CFG_LAST_NDX; i++)); do
         CfgArr[$i]=" "
     done
-    
-    echo "Accessing internet for default country/city name"
     
     # When you type https://www.timeanddate.com/worldclock the second link
     # is your default country/city name. For `grep` parameter credits see:
@@ -329,7 +325,7 @@ CalcBrightness () {
     # Values may be going up or going down. Calc difference based on %
 
     if [[ $1 == Day ]]; then
-        # Transitioning to Daytime
+        # Fixed or transitioning to Daytime
         if [[ -z "$2" ]]; then
             # Parameter 2 is empty (no adjustment percentage)
             NewGamma="$MonDayRed:$MonDayGreen:$MonDayBlue"
@@ -347,7 +343,7 @@ CalcBrightness () {
             NewBright=$NewReturn
         fi
     else
-        # Transitioning to Nighttime
+        # Fixed or transitioning to Nighttime
         if [[ -z "$2" ]]; then
             NewGamma="$MonNgtRed:$MonNgtGreen:$MonNgtBlue"
             NewBright="$MonNgtBrightness"
@@ -365,17 +361,19 @@ CalcBrightness () {
             NewBright=$NewReturn
         fi
     fi
+logger "$0 CalcBrighness MonNumber: $MonNumber NewBright: $NewBright"
 
 } # CalcBrightness
 
 SetBrightness () {
+logger "$0 SetBrighness 1/2: $1 / $2"
 
     # Called from: - eyesome.sh for long day/night sleep no $2
     #              - eyesome.sh for short transition period with $2
     #              - eyesome-cfg.sh for short day/night test no $2
 
-    # Parm: $1 = Day (can include increasing after sunrise)
-    #            Ngt (can include decreasing before sunset)
+    # Parm: $1 = Day (includes increasing after sunrise when $2 passed)
+    #            Ngt (Includes decreasing before sunset when $2 passed)
     #       $2 = % fractional adjustment (6 decimals)
     #       If $2 not passed then use full day or full night values
  
@@ -383,7 +381,7 @@ SetBrightness () {
 
     aMonNdx=( $CFG_MON1_NDX $CFG_MON2_NDX $CFG_MON3_NDX )
     InitXrandrArray
-    aAllMon=()      # Must be visible to eyesome-cfg.sh
+    aAllMon=()      # Used in eyesome-cfg.sh, NOT used in eyesome.sh
     
     for MonNdx in ${aMonNdx[@]}; do
     
@@ -396,9 +394,13 @@ SetBrightness () {
         SearchXrandrArray $MonXrandrName
         aAllMon+=("# Connection: $XrandrConnection")
         aAllMon+=("# Xrandr CRTC: $XrandrCRTC")
+
+logger "$0 Monitor: $MonNumber: $XrandrConnection CRTC: $XrandrCRTC"
        
-        [[ $XrandrConnection == disconnected ]] && continue
-        [[ $XrandrCRTC == "" ]] && continue
+# Sep 20/18 eyesome.sh call using Day/Ngt without $2 factor CRTC is blank. When
+#   using $2 CRTC is reported non-blank digit?
+#        [[ $XrandrConnection == disconnected ]] && continue
+#        [[ $XrandrCRTC == "" ]] && continue
         [[ $MonStatus == Disabled ]] && continue
 
         CalcBrightness $1 $2

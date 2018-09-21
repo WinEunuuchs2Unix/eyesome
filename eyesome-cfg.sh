@@ -5,7 +5,7 @@
 # DESC: Configuration for eyessome.sh's min/max values, sun rise/set time
 #       and transition minutes.
 # CALL: Called from terminal with `sudo` permissions.
-# DATE: Feb 17, 2017. Modified: Sep 18, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 19, 2018.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
@@ -205,14 +205,14 @@ MainMenu () {
     LastCheckTime=$(date +'%I:%M:%S %p') # Now
 # --image-on-top
     Dummy=$(yad  --form \
-        --image=preferences-desktop-screensaver --image-on-top \
+        --image=preferences-desktop-screensaver \
         --window-icon=preferences-desktop-screensaver \
         --margins=10 \
         --title="eyesome setup" \
         --text="<big><b>eyesome</b></big> - main menu" \
         --timeout="$SecondsToUpdate" --timeout-indicator=top \
-        --field="Brightness and Gamma last set::RO" \
-        --field="Seconds until eyesome daemon wakes::RO" \
+        --field="Eyesome daemon time remaining queried at::RO" \
+        --field="Seconds until eyesome daemon wakes up::RO" \
         --field="Brightness will be set again at::RO" \
         --field="
 
@@ -276,7 +276,7 @@ TestBrightness () {
         --no-cancel             --center \
         --bar=RTL               2>/dev/nul
     
-    "$WakeEyesome" post TestBrightness nosleep # $4 remaining sec not used
+    $WakeEyesome post TestBrightness nosleep # $4 remaining sec not used
     sleep .25    # Give eyesome daemon time to wakeup & sleep before main menu
 
 } # TestBrightness

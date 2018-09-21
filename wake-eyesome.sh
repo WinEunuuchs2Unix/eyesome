@@ -7,7 +7,7 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Sepetmber 18, 2018.
+# DATE: August 2017. Modified: Sepetmber 19, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "suspend" or "hibernate"
@@ -26,7 +26,7 @@ case $1/$2 in
     echo "$0: Going to $2..."
     ;;
   post/*)
-    # March 28, 2018 On AW17R3 this script runs too fast
+    # March 28, 2018 On AW17R3 this script runs too soon after suspend resume.
     [[ $3 != nosleep ]] && sleep 1.5
 
     [[ $4 != remain ]] && echo "$0: Resuming from $2..."
@@ -68,12 +68,6 @@ case $1/$2 in
     # We are waking up eyesome.sh by killing it's sleep command
     kill $pID  # kill sleep command forcing eyesome.sh to wakeup now.
     echo "$0: sleep pID: '$pID' has been killed."
-    if [[  -f "$CurrentBrightnessFilename" ]] ; then
-        rm -f "$CurrentBrightnessFilename"
-        echo "$0: $CurrentBrightnessFilename has been removed."
-    else
-        echo "$0: $CurrentBrightnessFilename did not exist??"
-    fi
 
     ;;
 esac
