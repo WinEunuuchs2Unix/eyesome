@@ -7,18 +7,21 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Sepetmber 19, 2018.
+# DATE: August 2017. Modified: Sepetmber 21, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
-#       $2 = systemd Function = "suspend" or "hibernate"
-#       $3 = "nosleep" skip sleep time for on-line testing
-#       $4 = Optional debug. "remain" to display seconds remaining only,
-#            don't kill the sleep command.
+#       $2 = systemd Function = "Suspend" or "Hibernate"
+#            eyesome-cfg.sh = "TestBrightness"
+#            eyesome-cfg-sh = "eyesome-cfg.sh"
+#            acpi-lid-eyesome.sh = "LidOpenClose"
+#       $3 = "nosleep" skip sleep time for TestBrightness and LidOpenClose
+#       $4 = CLI or eyesome-cfg.sh pass "remain" to display seconds remaining
+#            but don't kill the sleep command.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
 if [[ $3 == "" && $4 == "" ]] ; then
-    logger "eyesome logger: \$0=$0, \$1=$1, \$2=$2"
+    logger "eyesome logger: \$0=$0, \$1=$1, \$2=$2, \$3=$3, \$4=$4"
 fi
 
 case $1/$2 in
@@ -64,11 +67,17 @@ case $1/$2 in
     fi
 
     [[ $pID == "" ]] && exit 0  # eyesome.sh not running or it wasn't sleeping
+
+    # Removing file informs daemon we are resuming from suspend or laptop
+    # lid was opened/closed. In this case Lightdm takes about 10 seconds
+    # reseting some slower TVs/Monitors once or twice. Each reset causes
+    # brightness and gamma to reset to 1.00.
+    [[ $2 != eyesome-cfg.sh ]] && rm -f "$CurrentBrightnessFilename"
     
     # We are waking up eyesome.sh by killing it's sleep command
     kill $pID  # kill sleep command forcing eyesome.sh to wakeup now.
     echo "$0: sleep pID: '$pID' has been killed."
-
+        
     ;;
 esac
 

@@ -5,7 +5,7 @@
 # DESC: Configuration for eyessome.sh's min/max values, sun rise/set time
 #       and transition minutes.
 # CALL: Called from terminal with `sudo` permissions.
-# DATE: Feb 17, 2017. Modified: Sep 19, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 21, 2018.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
@@ -185,15 +185,14 @@ transition if testing after sunrise and before sunset.:
     cat "$res4" >> "$ConfigFilename"
     AddEmptyFields 4
     echo "" >> "$ConfigFilename" # Add EOF (new line) marker
-    
-    # Get user changes into Memory
-    ReadConfiguration
 
 } # EditConfiguration
 
 MainMenu () {
 
-    SecondsToUpdate=$("$WakeEyesome" post remain nosleep remain)
+    ReadConfiguration
+    
+    SecondsToUpdate=$("$WakeEyesome" post eyesome-cfg.sh nosleep remain)
 
     # Blowout protection blank, 0 or negative (bug)
     [[ $SecondsToUpdate == "" ]] || [[ $SecondsToUpdate == 0 ]] \
@@ -203,7 +202,7 @@ MainMenu () {
     NextDate=$(date --date="$SecondsToUpdate seconds") # Sleep seconds Epoch
     NextCheckTime=$(date --date="$NextDate" +'%I:%M:%S %p') # Now + Sleep
     LastCheckTime=$(date +'%I:%M:%S %p') # Now
-# --image-on-top
+
     Dummy=$(yad  --form \
         --image=preferences-desktop-screensaver \
         --window-icon=preferences-desktop-screensaver \
@@ -276,7 +275,7 @@ TestBrightness () {
         --no-cancel             --center \
         --bar=RTL               2>/dev/nul
     
-    $WakeEyesome post TestBrightness nosleep # $4 remaining sec not used
+    $WakeEyesome post eyesome-cfg.sh nosleep # $4 remaining sec not used
     sleep .25    # Give eyesome daemon time to wakeup & sleep before main menu
 
 } # TestBrightness
@@ -339,8 +338,7 @@ sunset.:LBL" \
         Retn="$?"
 
         if [[ $Retn == "$ButnRetrieve" ]] ; then
-# TODO: Use $EyesomeSunProgram variable
-            eyesome-sun.sh nosleep
+            $EyesomeSunProgram nosleep
             [[ "$?" == 0 ]] && return 0     # Success
             continue                        # Loop and offer another try
         else
@@ -428,6 +426,7 @@ main () {
             CheckSunHours
             CheckEyesomeDaemon
             # monitor settings may have changed, so wake up eyesome
+            $WakeEyesome post eyesome-cfg.sh nosleep
         elif [[ $Retn == "$ButnDay" ]] ; then
             TestBrightness Day
         elif [[ $Retn == "$ButnNight" ]] ; then

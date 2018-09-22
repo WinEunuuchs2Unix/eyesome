@@ -1,9 +1,11 @@
-d98d45d72c311af1e173fb8e00fc767a  install.sh
-b2baa2de4f14869b16a7eaa372785ac9  eyesome.sh
-d276cade3e79b5a8271ae7fb81b31536  eyesome-cfg.sh
-2a9120aafb967fbafc40f0e3de658197  eyesome-src.sh
+5b15c66e23bbefe7d5a78293031697a6  install.sh
+9edb8a757c77bbddd13909d53edc5ade  eyesome.sh
+958711b7c876da4f653153879798902a  eyesome-cfg.sh
+b51c12b83d5652ce4a6d50896c8e0249  eyesome-src.sh
 6b4513b059b7d7924eeb1ee7c3e79a08  eyesome-sun.sh
-d1a78c364e1d8827f556a875843c8a97  wake-eyesome.sh
+1d529c901c06ede940be1ec1367d3695  wake-eyesome.sh
 712eff1f4ec14fbf04521674c32aa5b8  start-eyesome
 0cdc4dbb0a383cd97f1e6d0744a6f8e4  daily-eyesome-sun
-fb718def755b7f895571b41119443880  systemd-wake-eyesome
+5a2abb831f31a7339270868ddd37f745  systemd-wake-eyesome
+d3322857edf7ebe08bc333229c9f8129  acpi-lid-eyesome.sh
+8ce2412bdb1bab4bca6e4921f9ae282b  acpi-lid-event-eyesome

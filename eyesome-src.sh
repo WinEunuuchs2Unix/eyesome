@@ -361,12 +361,10 @@ CalcBrightness () {
             NewBright=$NewReturn
         fi
     fi
-logger "$0 CalcBrighness MonNumber: $MonNumber NewBright: $NewBright"
 
 } # CalcBrightness
 
 SetBrightness () {
-logger "$0 SetBrighness 1/2: $1 / $2"
 
     # Called from: - eyesome.sh for long day/night sleep no $2
     #              - eyesome.sh for short transition period with $2
@@ -395,12 +393,8 @@ logger "$0 SetBrighness 1/2: $1 / $2"
         aAllMon+=("# Connection: $XrandrConnection")
         aAllMon+=("# Xrandr CRTC: $XrandrCRTC")
 
-logger "$0 Monitor: $MonNumber: $XrandrConnection CRTC: $XrandrCRTC"
-       
-# Sep 20/18 eyesome.sh call using Day/Ngt without $2 factor CRTC is blank. When
-#   using $2 CRTC is reported non-blank digit?
-#        [[ $XrandrConnection == disconnected ]] && continue
-#        [[ $XrandrCRTC == "" ]] && continue
+        [[ $XrandrConnection == disconnected ]] && continue
+        [[ $XrandrCRTC == "" ]] && continue
         [[ $MonStatus == Disabled ]] && continue
 
         CalcBrightness $1 $2

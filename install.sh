@@ -3,7 +3,7 @@
 # NAME: install.sh
 # PATH: Current directory where files downloaded from github
 # DESC: Copy eyesome scripts / command files to target directories
-# DATE: September 18 2018.
+# DATE: September 21 2018.
 
 # PARM: $1=dev developer mode, publish files
 #         =rm  remove files
@@ -19,9 +19,11 @@ CopyFiles () {
     install -v ./eyesome-src.sh         /usr/local/bin/
     install -v ./eyesome-sun.sh         /usr/local/bin/
     install -v ./wake-eyesome.sh        /usr/local/bin/
-    install -v ./start-eyesome          /etc/cron.d/
-    install -v ./daily-eyesome-sun      /etc/cron.daily/
+    cp      -v ./start-eyesome          /etc/cron.d/
+    cp      -v ./daily-eyesome-sun      /etc/cron.daily/
     install -v ./systemd-wake-eyesome   /lib/systemd/system-sleep/
+    install -v ./acpi-lid-eyesome.sh    /etc/acpi/
+    cp      -v ./acpi-lid-event-eyesome /etc/acpi/events/
 
 } # CopyFiles
 
@@ -39,6 +41,8 @@ RemoveFiles () {
     rm -v -f /etc/cron.d/start-eyesome
     rm -v -f /etc/cron.daily/daily-eyesome-sun
     rm -v -f /lib/systemd/system-sleep/systemd-wake-eyesome
+    rm -v -f /etc/acpi/acpi-lid-eyesome.sh
+    rm -v -f /etc/acpi/events/acpi-lid-event-eyesome
 
     echo 
     echo All eyesome programs have been removed, except data files:
@@ -74,6 +78,8 @@ PublishFiles () {
     cp -v /etc/cron.d/start-eyesome .
     cp -v /etc/cron.daily/daily-eyesome-sun .
     cp -v /lib/systemd/system-sleep/systemd-wake-eyesome .
+    cp -v /etc/acpi/acpi-lid-eyesome.sh .
+    cp -v /etc/acpi/events/acpi-lid-event-eyesome .
 
     md5sum \
         install.sh \
@@ -85,6 +91,8 @@ PublishFiles () {
         start-eyesome \
         daily-eyesome-sun \
         systemd-wake-eyesome \
+        acpi-lid-eyesome.sh \
+        acpi-lid-event-eyesome \
         > eyesome.md5
 
     echo
