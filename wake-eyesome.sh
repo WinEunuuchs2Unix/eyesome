@@ -7,42 +7,40 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Sepetmber 21, 2018.
+# DATE: August 2017. Modified: Sepetmber 22, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "Suspend" or "Hibernate"
-#            eyesome-cfg.sh = "TestBrightness"
 #            eyesome-cfg-sh = "eyesome-cfg.sh"
 #            acpi-lid-eyesome.sh = "LidOpenClose"
-#       $3 = "nosleep" skip sleep time for TestBrightness and LidOpenClose
+#       $3 = "nosleep" skip sleep time for eyesome-cfg.sh and LidOpenClose
 #       $4 = CLI or eyesome-cfg.sh pass "remain" to display seconds remaining
 #            but don't kill the sleep command.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
-if [[ $3 == "" && $4 == "" ]] ; then
-    logger "eyesome logger: \$0=$0, \$1=$1, \$2=$2, \$3=$3, \$4=$4"
-fi
-
 case $1/$2 in
   pre/*)
-    echo "$0: Going to $2..."
+    echo YES > "$EyesomeIsSuspending"
+    sync -d "$EyesomeIsSuspending"
+    logger "$0: Going to $2.  Creating: $EyesomeIsSuspending"
     ;;
   post/*)
-    # March 28, 2018 On AW17R3 this script runs too soon after suspend resume.
-    [[ $3 != nosleep ]] && sleep 1.5
+  
+    #[[ $3 != nosleep ]] && sleep 1.5   # Redundant as eyesome.sh spams sleep
 
-    [[ $4 != remain ]] && echo "$0: Resuming from $2..."
+    [[ $4 != remain ]] && \
+        logger "$0: Resuming from $2."  # When $4=remain no chatter, just secs.
 
     # Find running tree processes containing "eyesome.sh" AND "sleep"
-    ProgramTree=$(pstree -g -p | grep "${EyesomeDaemon##*/}" | grep sleep)
+    ProcessTree=$(pstree -g -p | grep "${EyesomeDaemon##*/}" | grep sleep)
 
-    # Extract sleep program ID in $ProgramTree, we want "16621" below:
+    # Extract sleep process ID in $ProcessTree, we want "16621" below:
     # |-cron(1198,1198)---cron(1257,1198)---sh(1308,1308)--- \
     #                   eyesome.sh(1321,1308)---sleep(16621,1308)
 
-    pID=${ProgramTree##*sleep(} # cut everything up to & incl "sleep("
-    pID=${pID%,*}               # cut everything after & incl ","
+    pID=${ProcessTree##*sleep(}     # cut everything up to & incl "sleep("
+    pID=${pID%,*}                   # cut everything after & incl ","
 
     # Are we just getting time remaining and not waking up?
     if [[ "$4" == "remain" ]] ; then
@@ -72,11 +70,11 @@ case $1/$2 in
     # lid was opened/closed. In this case Lightdm takes about 10 seconds
     # reseting some slower TVs/Monitors once or twice. Each reset causes
     # brightness and gamma to reset to 1.00.
-    [[ $2 != eyesome-cfg.sh ]] && rm -f "$CurrentBrightnessFilename"
+    rm -f "$CurrentBrightnessFilename"
     
-    # We are waking up eyesome.sh by killing it's sleep command
+    # Wake up eyesome.sh daemon by killing it's sleep command
     kill $pID  # kill sleep command forcing eyesome.sh to wakeup now.
-    echo "$0: sleep pID: '$pID' has been killed."
+    logger "$0: sleep pID: '$pID' has been killed."
         
     ;;
 esac

@@ -5,7 +5,7 @@
 # DESC: Source (include) file for eyessome.sh, eyesome-sun.sh, eyesome-cfg.sh
 # CALL: Include at program top with `. eyesome-src` or `source eyesome-src`.
 # NOTE: You do not have to specify directory because $PATH is searched.
-# DATE: Feb 17, 2017. Modified: Sep 20, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 22, 2018.
 
 OLD_IFS=$IFS
 IFS="|"
@@ -35,6 +35,7 @@ CronSunHours=/etc/cron.daily/daily-eyesome-sun
 EyesomeSunProgram=/usr/local/bin/eyesome-sun.sh
 WakeEyesome=/usr/local/bin/wake-eyesome.sh
 SystemdWakeEyesome=/lib/systemd/system-sleep/systemd-wake-eyesome
+EyesomeIsSuspending=/tmp/eyesome-is-suspending
 
 # Monitor working storage
 GetMonitorWorkSpace () {
