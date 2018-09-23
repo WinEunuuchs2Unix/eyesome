@@ -2,10 +2,13 @@
 
 # NAME: eyesome-src.sh
 # PATH: /usr/local/bin
-# DESC: Source (include) file for eyessome.sh, eyesome-sun.sh, eyesome-cfg.sh
+# DESC: Source (include) file for eyessome.sh, eyesome-sun.sh, eyesome-cfg.sh,
+#       wake-eyesome.sh and acpi-lid-eyesome.sh.
 # CALL: Include at program top with `. eyesome-src` or `source eyesome-src`.
 # NOTE: You do not have to specify directory because $PATH is searched.
-# DATE: Feb 17, 2017. Modified: Sep 22, 2018.
+#       This will not work with shebang #!/bin/sh it MUST be #!/bin/bash
+
+# DATE: Feb 17, 2017. Modified: Sep 23, 2018.
 
 OLD_IFS=$IFS
 IFS="|"
@@ -107,6 +110,14 @@ InitXrandrArray () {
 SearchXrandrArray () {
 
     # Parms: $1 = xrandr monitor name to search for.
+
+    # NOTE: Entries in array follow predicatble order from xrandr --verbose:
+
+    #       <MONITOR-NAME> connected / disconnected (line 1 of monitor entry)
+    #       Gamma:      0.99:0.99:0.99              (line 5 of entry)
+    #       Brightness: 0.99                        (line 6 of entry)
+    #       CRTC:       9                           (line 8 of entry)
+
     fNameFnd=false
     fBrightnessFnd=false
     fGammaFnd=false
@@ -124,7 +135,7 @@ SearchXrandrArray () {
         if [[ "$line" =~ " connected " ]] && [[ $fNameFnd == true ]] ; then
             break
         fi
-        
+
         if [[ "$line" =~ ^"$MonXrandrName connected" ]]; then
             fNameFnd=true
             XrandrConnection=connected
@@ -182,15 +193,16 @@ CreateConfiguration () {
     CfgArr[$CFG_AFTER_SUNRISE_NDX]=120
     CfgArr[$CFG_TEST_SECONDS_NDX]=5
 
-    # Deafult maximum brightness (daytime settings)
+    # Deafult Daytime brightness
     backlight=$(ls /sys/class/backlight)
     # If no hardware support use software, eg `xrandr`
-    MonStatus="Enabled"                 # alternate = "Disabled"
+    MonStatus="Enabled"                 # opposite is "Disabled"
     if [[ $backlight == "" ]]; then
+        # No /sys/class/backlight/* directory so software controlled (xrandr)
         MonType="Software"
         MonName="xrandr controlled"
         backlight="xrandr"
-        MonDayBrightness="1.000000"     # yad using 6 decimal places
+        MonDayBrightness="1.000000"     # yad uses 6 decimal places
     else
         MonType="Hardware"
         MonName="Laptop Display"
@@ -198,6 +210,7 @@ CreateConfiguration () {
         MonDayBrightness=$(cat "/sys/class/backlight/$backlight/brightness")
     fi
 
+    # Set Monitor 1 fields based on "primary" setting in xrandr
     MonHardwareName="$backlight"
     XrandrName=$(xrandr --current | grep primary)
     PrimaryMonitor=${XrandrName%% *}
@@ -220,7 +233,8 @@ CreateConfiguration () {
     
     MonNumber=1                         # others = "2" or "3"
     SetMonitorWorkSpace $CFG_MON1_NDX   # Set Monitor #1
-    
+
+    # Set Monitor 2 based on next non-primary and active monitor in xrandr    
     MonNumber=2
     MonType="Software"
     MonHardwareName="xrandr"
@@ -240,6 +254,7 @@ CreateConfiguration () {
 
     SetMonitorWorkSpace $CFG_MON2_NDX   # Set Monitor #2
     
+    # Set Monitor 3 based on next monitor in xrandr that isn't Monitor 1 or 2.
     MonNumber=3
     
     XrandrName=$(xrandr --current | grep -v "$PrimaryMonitor" | grep -v dis | \
@@ -252,9 +267,6 @@ CreateConfiguration () {
                                 else MonStatus="Enabled" ; fi
 
     SetMonitorWorkSpace $CFG_MON3_NDX   # Set Monitor #3
-
-    # Do we want to write configuration file now or wait till user saves?
-    # Test from command line & see | delimiter using: echo "${CfgArr[*]}"
 
 } # CreateConfiguration
 
@@ -296,7 +308,8 @@ CalcNew () {
     # Sets NewReturn to new value
     # Parm: 1= Source Value (9999.999999)
     #       2= Target Value (9999.999999)
-    #       3= Progress .999999 in six decimals
+    #       3= Progress .999999 in six decimals. At start of transition
+    #          progress is .000001 & nearing end of transition it is .999999
 
     st=$(echo "$1 < $2" | bc)
 
@@ -304,7 +317,7 @@ CalcNew () {
         # Target >= Source
         Diff=$( bc <<< "scale=6; $2 - $1" )
         Diff=$( bc <<< "scale=6; $Diff * $3" )
-        NewReturn=$( bc <<< "scale=6; $2 - $Diff" )
+        NewReturn=$( bc <<< "scale=6; $1 + $Diff" )
     else
         # Target < Source
         Diff=$( bc <<< "scale=6; $1 - $2" )
@@ -316,19 +329,17 @@ CalcNew () {
 
 CalcBrightness () {
 
-    NewGamma=""
-    NewBrightness=""
-    
     # Parms $1=Day / Night
     #       $2=Adjust factor (percentage in .999999)
     #       If $2 not passed then return Day or Night value without adjustment
 
-    # Values may be going up or going down. Calc difference based on %
-
+    NewGamma=""
+    NewBrightness=""
+    
     if [[ $1 == Day ]]; then
-        # Fixed or transitioning to Daytime
+        # Fixed Daytime setting or transitioning to Daytime
         if [[ -z "$2" ]]; then
-            # Parameter 2 is empty (no adjustment percentage)
+            # Parameter 2 is empty so no adjustment percentage (no transition)
             NewGamma="$MonDayRed:$MonDayGreen:$MonDayBlue"
             NewBright="$MonDayBrightness"
         else
@@ -344,12 +355,12 @@ CalcBrightness () {
             NewBright=$NewReturn
         fi
     else
-        # Fixed or transitioning to Nighttime
+        # Fixed Nightime setting or transitioning to Nighttime
         if [[ -z "$2" ]]; then
             NewGamma="$MonNgtRed:$MonNgtGreen:$MonNgtBlue"
             NewBright="$MonNgtBrightness"
         else
-            # Parameter 2 passed. Use it as adjustment factor.
+            # Parameter 2 passed. Use it as adjustment factor (transitioning).
             CalcNew $MonDayRed $MonNgtRed $2
             NewRed=$NewReturn
             CalcNew $MonDayGreen $MonNgtGreen $2
@@ -367,9 +378,9 @@ CalcBrightness () {
 
 SetBrightness () {
 
-    # Called from: - eyesome.sh for long day/night sleep no $2
-    #              - eyesome.sh for short transition period with $2
-    #              - eyesome-cfg.sh for short day/night test no $2
+    # Called from: - eyesome.sh for long day/night sleep NO $2 passed
+    #              - eyesome.sh for short transition period $2 IS passed
+    #              - eyesome-cfg.sh for short day/night test NO $2 passed
 
     # Parm: $1 = Day (includes increasing after sunrise when $2 passed)
     #            Ngt (Includes decreasing before sunset when $2 passed)

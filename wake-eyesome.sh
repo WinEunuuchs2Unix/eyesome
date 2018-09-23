@@ -7,7 +7,7 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Sepetmber 22, 2018.
+# DATE: August 2017. Modified: Sepetmber 23, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "Suspend" or "Hibernate"
@@ -30,7 +30,7 @@ case $1/$2 in
     #[[ $3 != nosleep ]] && sleep 1.5   # Redundant as eyesome.sh spams sleep
 
     [[ $4 != remain ]] && \
-        logger "$0: Resuming from $2."  # When $4=remain no chatter, just secs.
+        logger "$0: Waking from $2."  # When $4=remain no chatter, just secs.
 
     # Find running tree processes containing "eyesome.sh" AND "sleep"
     ProcessTree=$(pstree -g -p | grep "${EyesomeDaemon##*/}" | grep sleep)
@@ -70,7 +70,7 @@ case $1/$2 in
     # lid was opened/closed. In this case Lightdm takes about 10 seconds
     # reseting some slower TVs/Monitors once or twice. Each reset causes
     # brightness and gamma to reset to 1.00.
-    rm -f "$CurrentBrightnessFilename"
+    [[ $2 != "eyesome-cfg.sh" ]] && rm -f "$CurrentBrightnessFilename"
     
     # Wake up eyesome.sh daemon by killing it's sleep command
     kill $pID  # kill sleep command forcing eyesome.sh to wakeup now.

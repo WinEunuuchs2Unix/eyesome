@@ -12,24 +12,35 @@
 #       is called from: /etc/acpi/events/acpi-lid-event-eyesome
 #       Called from eyesome-cfg.sh after 5 second Daytime/Nighttime tests.
 
-# DATE: Feb 17, 2017. Modified: Sep 22, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 23, 2018.
 
-# TODO: Support for Wayland
+# TODO: Recognize user may have booted with Wayland (no xrandr)
 
-source eyesome-src.sh # Common code for eyesome___.sh bash scripts
+# TODO: Some sort of udev support for monitor hotplugging or physical on/off.
+#       Wihtout udev user will need to use `sudo eyesome-cfg.sh` and click the
+#       Daytime or Nightime 5 second test button.
 
-export DISPLAY=:0     # For xrandr commands to work.
-SpamCount=5
-SpamLength=2
-SpamContext=""
+source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
+
+export DISPLAY=:0       # For xrandr commands to work.
+SpamCount=5             # How many times we will spam (perform short sleep)
+SpamLength=2            # How long spam lasts (how many seconds to sleep)
+SpamContext=""          # Why are we spamming? (Login, Suspend or Lid Event)
 
 SleepResetCheck () {
+
+    # PARM: $1 sleep interval. If Spam is on then override with short interval
+    #       of 2 seconds for 5 iterations as controlled above.
 
     if [[ $SpamOn -gt 0 ]] ; then
         $(( SpamOn-- ))
         sleep $SpamLength
         if [[ $SpamOn == 1 ]] ; then
             if [[  -f "$EyesomeIsSuspending" ]] ; then
+                # Lid close event can reset external monitors which we need
+                # to trap and spam for. Or it can suspend the system which
+                # means we did nothing. If file is present after resuming
+                # system remove it now so next lid close event isn't broken.
                 rm -f "$EyesomeIsSuspending"
                 logger "$0: Removed file: $EyesomeIsSuspending"
             fi
@@ -42,10 +53,14 @@ SleepResetCheck () {
 
 CalcTransitionSleep () {
 
-    # Parms $1 = Day = transition from nighttime to full daytime
+    # PARM: $1 = Day = transition from nighttime to full daytime
     #          = Ngt = trannstion from daytime to full nighttime
     #       $2 = total seconds for transition
     #       $3 = number of seconds into transition
+
+    # How far are we into transition? 0.000001 is not very far and
+    # 0.999999 is nearly at end. Yad uses 6 decimal places so eyesome
+    # uses same.
 
     Percent=$( bc <<< "scale=6; ( $3 / $2 )" )
 
@@ -55,6 +70,10 @@ CalcTransitionSleep () {
 } # CalcTransitionSleep
 
 WaitForSignOn () {
+
+    # eyesome daemon is loaded during boot. The user name is required
+    # for xrandr external monitor brightness and gamma control. We must
+    # wait until user signs on to get .Xauthority file settings.
 
     SpamOn=$SpamCount       # Causes 10 iterations of 2 second sleep
     SpamContext="Login"
@@ -69,7 +88,7 @@ WaitForSignOn () {
         sleep 2
         TotalWait=$(( TotalWait + 2 ))
 
-        # Find the user who is currently logged in on the primary screen.
+        # Find user currently logged in.
         user="$(who -u | grep -F '(:0)' | head -n 1 | awk '{print $1}')"
     done
 
@@ -82,12 +101,13 @@ WaitForSignOn () {
 
 CheckForSpam () {
 
-    [[ $SpamOn -gt 0 ]] && return # Spam turned on during signon
+    [[ $SpamOn -gt 0 ]] && return # Spam already turned on during login
     
     # Removed file indicates we are resuming from suspend or
     # laptop lid was opened / closed. Either event can cause external
     # monitors to be reset once or twice and each reset changes 
-    # brightnesss and gamma to 1.00.
+    # brightnesss and gamma to 1.00. The reset period lasts many seconds.
+
     if [[ ! -f "$CurrentBrightnessFilename" ]] ; then
         echo "OFF" > "$CurrentBrightnessFilename" # Prevent infinite loop.
         SpamOn=$SpamCount      # Causes 5 iterations of 2 second sleep
