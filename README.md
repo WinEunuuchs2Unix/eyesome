@@ -34,6 +34,8 @@ and operates as a control center for:
 - viewing the next interval brightess/gamma will be set
 - viewing the last interval's setting of brightness/gamma per monitor
 
+For screen shots please see: https://askubuntu.com/a/887249/307523
+
 ## Automatic operations
 
 When you boot your computer a script in `/etc/cron.d` is run to load the
