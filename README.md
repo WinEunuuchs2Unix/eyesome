@@ -71,6 +71,10 @@ sunrise and sunset times from https://www.timeanddate.com.
 
     `sudo ./install.sh`
     
+    If you don't have the program `yad` installed you will be prompted to install
+    it. Proceed to install it by entering `y` or `Y`. It is needed in order to
+    run eyesome's configuration program.
+    
 5. Configure your monitors using:
 
     `sudo eyesome-cfg.sh`
@@ -78,8 +82,8 @@ sunrise and sunset times from https://www.timeanddate.com.
 6. Note after saving configuration for the frist time you are prompted to 
 update Sunrise and Sunset times as they haven't been initialized yet. You
 are also prompted to start the eyesome dameon because you haven't rebooted
-your computer yet. Go ahead and accept both these prompts and you should
-never see them again after the first time configuration.
+your computer yet. Go ahead and accept both these prompts. You should never
+see them again after the first time configuration.
     
 ### Note:
 
