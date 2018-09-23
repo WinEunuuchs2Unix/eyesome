@@ -37,28 +37,49 @@ and operates as a control center for:
 ## Automatic operations
 
 When you boot your computer a script in `/etc/cron.d` is run to load the
-eyesome daemon: `eyesome.sh`. This will run 24/7 in the background.
+eyesome daemon: `eyesome.sh`. This will run 24/7 and spend most of it's time
+sleeping in the background to consume as little computer resources as possible.
 
-When you suspend and resume your computer a script in `/etc/systemd/system-
-sleep` runs `wake-eyesome.sh` to instantly adjust your screen brightness.
+When you suspend and resume your computer a script in `/etc/systemd/system-sleep` 
+runs `wake-eyesome.sh` to instantly adjust your screen brightness.
 This is useful if you suspend your laptop at full brightness during day
 and then wake it up at night.
 
-Each morning a scxript in `/etc/cron.daily` is run to obtain that day's
+When your laptop lid is opened or closed the control file
+`/etc/acpi/events/lid-event-eyesome` calls the script 
+`/etc/acpi/acpi-lid-eyesome.sh`. This in turn calls `wake-eyesome.sh` to
+reset brightness and gamma on all monitors. This is necessary because 
+linux resets all monitors to full brightness `1.00` and full gamma `1.00`
+using `xrandr` when the laptop lid is closed or opened.
+
+Each morning the control file `/etc/cron.daily/daily-eyes-sun` calls the 
+script `eyesome-sun.sh`.  This script obtain the current day's
 sunrise and sunset times from https://www.timeanddate.com.
 
 ## Installation
 
-Download the zip file, preferably to a new directory `~/eyesome` to
-reduce clutter in `~/Downloads`.
+1. Download the zip file and extract it using Archive Manager or another tool.
 
-Mark the file `install.sh` as executable with the command:
+2. Open a terminal and change to the down load directory. eg 
+`cd ~/eyesome-MASTER`
 
-    sudo chmod a+x install.sh
+3. Mark the file `install.sh` as executable with the command:
+
+    `sudo chmod a+x install.sh`
     
-Run the install program using:
+4. Run the install program using:
 
-    sudo install.sh
+    `sudo ./install.sh`
+    
+5. Configure your monitors using:
+
+    `sudo eyesome-cfg.sh`
+    
+6. Note after saving configuration for the frist time you are prompted to 
+update Sunrise and Sunset times as they haven't been initialized yet. You
+are also prompted to start the eyesome dameon because you haven't rebooted
+your computer yet. Go ahead and accept both these prompts and you should
+never see them again after the first time configuration.
     
 ### Note:
 
