@@ -8,7 +8,7 @@
 # NOTE: You do not have to specify directory because $PATH is searched.
 #       This will not work with shebang #!/bin/sh it MUST be #!/bin/bash
 
-# DATE: Feb 17, 2017. Modified: Sep 23, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 26, 2018.
 
 OLD_IFS=$IFS
 IFS="|"
@@ -442,4 +442,44 @@ SetBrightness () {
 
 } # SetBrightness
 
+log() {
 
+    # Wrapper script for logger command
+
+    # PARM: $1 Message to print
+    #       $$=pid of bash script
+    #       $0=name of bash scxript
+    #       $#=Number of paramters passed
+    
+    local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    Basename="$0"
+    Basename="${Basename##*/}"
+
+    case $Basename in
+        eyesome.sh)
+            ScriptName=Daemon;;
+        wake-eyesome.sh)
+            # Three pgorams can call, how to narrow down? pstree?
+            ScriptName=Wakeup;;
+        acpi-lid-eyesome.sh)
+            ScriptName="Lid Open/Close";;
+        eyesome-cfg.sh)
+            ScriptName=Setup;;
+        eyesome-sun.sh)
+            ScriptName="Sun Times";;
+        *)
+            ScriptName="eyesome-src.sh Function: log() - unknown name";;
+    esac
+
+    if [ $# -ne 1 ]; then
+        Msg="eyesome-src.sh Function: log() wrong number of parameters: $#"
+    else
+        Msg="$1"
+    fi
+
+#    logger --id=$$ -s -t "eyesome" "$ScriptName: $Msg"
+#    logger -s -t "eyesome" "$ScriptName: $Msg"
+    logger --id=$$ -t "eyesome" "$ScriptName: $Msg"
+
+} # log

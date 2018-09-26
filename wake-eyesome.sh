@@ -7,7 +7,7 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Sepetmber 23, 2018.
+# DATE: August 2017. Modified: Sepetmber 26, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "Suspend" or "Hibernate"
@@ -23,14 +23,14 @@ case $1/$2 in
   pre/*)
     echo YES > "$EyesomeIsSuspending"
     sync -d "$EyesomeIsSuspending"
-    logger "$0: Going to $2.  Creating: $EyesomeIsSuspending"
+    log "Going to $2.  Creating: $EyesomeIsSuspending"
     ;;
   post/*)
   
     #[[ $3 != nosleep ]] && sleep 1.5   # Redundant as eyesome.sh spams sleep
 
     [[ $4 != remain ]] && \
-        logger "$0: Waking from $2."  # When $4=remain no chatter, just secs.
+        log "Called from $2."  # When $4=remain no chatter, just secs.
 
     # Find running tree processes containing "eyesome.sh" AND "sleep"
     ProcessTree=$(pstree -g -p | grep "${EyesomeDaemon##*/}" | grep sleep)
@@ -64,7 +64,10 @@ case $1/$2 in
         exit 0
     fi
 
-    [[ $pID == "" ]] && exit 0  # eyesome.sh not running or it wasn't sleeping
+    if [[ $pID == "" ]] ; then
+        log "Sleeping process ID of eyesome daemon not found!"
+        exit 0  # eyesome.sh not running or it wasn't sleeping
+    fi
 
     # Removing file informs daemon we are resuming from suspend or laptop
     # lid was opened/closed. In this case Lightdm takes about 10 seconds
@@ -74,7 +77,7 @@ case $1/$2 in
     
     # Wake up eyesome.sh daemon by killing it's sleep command
     kill $pID  # kill sleep command forcing eyesome.sh to wakeup now.
-    logger "$0: sleep pID: '$pID' has been killed."
+    # log "Sleep pID: '$pID' has been killed."
         
     ;;
 esac

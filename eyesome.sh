@@ -12,7 +12,7 @@
 #       is called from: /etc/acpi/events/acpi-lid-event-eyesome
 #       Called from eyesome-cfg.sh after 5 second Daytime/Nighttime tests.
 
-# DATE: Feb 17, 2017. Modified: Sep 23, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 26, 2018.
 
 # TODO: Recognize user may have booted with Wayland (no xrandr)
 
@@ -42,7 +42,7 @@ SleepResetCheck () {
                 # means we did nothing. If file is present after resuming
                 # system remove it now so next lid close event isn't broken.
                 rm -f "$EyesomeIsSuspending"
-                logger "$0: Removed file: $EyesomeIsSuspending"
+                log "Removed file: $EyesomeIsSuspending"
             fi
         fi
     else
@@ -92,7 +92,7 @@ WaitForSignOn () {
         user="$(who -u | grep -F '(:0)' | head -n 1 | awk '{print $1}')"
     done
 
-    logger "$0 waited $TotalWait seconds until user: $user to login."
+    log "Waited $TotalWait seconds for $user to login."
 
     xhost local:root
     export XAUTHORITY="/home/$user/.Xauthority"
@@ -111,7 +111,10 @@ CheckForSpam () {
     if [[ ! -f "$CurrentBrightnessFilename" ]] ; then
         echo "OFF" > "$CurrentBrightnessFilename" # Prevent infinite loop.
         SpamOn=$SpamCount      # Causes 5 iterations of 2 second sleep
-        logger "$0: Sleeping $SpamLength seconds $SpamCount times."
+        # This works for kernel 4.13.0-36 because monitors auto reset to 1.00.
+        # This doesn't work for 4.4.0-135 because monitors stay black until
+        # mouse is moved and user may be slower than 10 seconds.
+        log "Sleeping $SpamLength seconds for $SpamCount times."
     fi
 
     if [[ -f "EyesomeIsSuspending" ]] ; then

@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: Sep 18, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 26, 2018.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -14,6 +14,8 @@ source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 ReadConfiguration       # Get $SunCity
 
 retry_sleep=60          # 1 minutes first time, then doubling each loop
+
+log "Get sunrise and sunset times for: $SunHoursAddress."
 
 while true; do
 
@@ -43,11 +45,14 @@ while true; do
         exit 1
     fi
 
-    logger "$0: Network is down. Waiting $retry_sleep seconds to try again."
+    log "Network is down. Waiting $retry_sleep seconds to try again."
     sleep $retry_sleep
     retry_sleep=$(( retry_sleep * 2 )) #double time 2m, 4m, 8m, 16m, etc.
 
     # After 8 hour work day, simply give up
-    [[ $retry_sleep -gt 28800 ]] && exit 1
+    if [[ $retry_sleep -gt 28800 ]] ; then
+        log "Giving up on waiting $retry_sleep seconds (> 8 hours)."
+        exit 1
+    fi
 
 done
