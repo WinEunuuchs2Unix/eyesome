@@ -8,7 +8,7 @@
 # NOTE: You do not have to specify directory because $PATH is searched.
 #       This will not work with shebang #!/bin/sh it MUST be #!/bin/bash
 
-# DATE: Feb 17, 2017. Modified: Sep 26, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 29, 2018.
 
 OLD_IFS=$IFS
 IFS="|"
@@ -39,6 +39,45 @@ EyesomeSunProgram=/usr/local/bin/eyesome-sun.sh
 WakeEyesome=/usr/local/bin/wake-eyesome.sh
 SystemdWakeEyesome=/lib/systemd/system-sleep/systemd-wake-eyesome
 EyesomeIsSuspending=/tmp/eyesome-is-suspending
+log() {
+
+    # Wrapper script for logger command
+
+    # PARM: $1 Message to print
+    #       $$=pid of bash script
+    #       $0=name of bash scxript
+    #       $#=Number of paramters passed
+    
+    local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    Basename="$0"
+    Basename="${Basename##*/}"
+
+    case $Basename in
+        eyesome.sh)
+            ScriptName=Daemon;;
+        wake-eyesome.sh)
+            # Three pgorams can call, how to narrow down? pstree?
+            ScriptName=Wakeup;;
+        acpi-lid-eyesome.sh)
+            ScriptName="Lid Open/Close";;
+        eyesome-cfg.sh)
+            ScriptName=Setup;;
+        eyesome-sun.sh)
+            ScriptName="Sun Times";;
+        *)
+            ScriptName="eyesome-src.sh Function: log() - unknown name";;
+    esac
+
+    if [ $# -ne 1 ]; then
+        Msg="eyesome-src.sh Function: log() wrong number of parameters: $#"
+    else
+        Msg="$1"
+    fi
+
+    logger --id=$$ -t "eyesome" "$ScriptName: $Msg"
+
+} # log
 
 # Monitor working storage
 GetMonitorWorkSpace () {
@@ -374,6 +413,10 @@ CalcBrightness () {
         fi
     fi
 
+# TODO: Changing sound between monitors can reset brightness.
+# Remove comment below to log values to journalctl / syslog
+#[[ $MonNumber == "1" ]] && log "Mon #: $MonNumber Day: $MonDayBrightness Ngt: $MonNgtBrightness Curr: $NewBright"
+
 } # CalcBrightness
 
 SetBrightness () {
@@ -397,6 +440,7 @@ SetBrightness () {
     
         GetMonitorWorkSpace $MonNdx
 
+        # aAllMon used by TestBrightness () in eyesome-cfg.sh
         aAllMon+=("# ")
         aAllMon+=("# Monitor Number: $MonNumber")
         aAllMon+=("# Name: $MonName")
@@ -410,30 +454,36 @@ SetBrightness () {
         [[ $MonStatus == Disabled ]] && continue
 
         CalcBrightness $1 $2
-        Gamma=$NewGamma
 
         if [[ $MonType == "Hardware" ]]; then
             backlight="/sys/class/backlight/$MonHardwareName/brightness"
             Brightness=1.00    # Fake for xrandr below
-            
-            IntBrightness=${NewBright%.*}
-            bash -c "echo $IntBrightness | sudo tee $backlight" > /dev/null
-
-            [[ $MonNumber == "1" ]] && echo "$IntBrightness" > \
-                                            "$CurrentBrightnessFilename"
-            MonCurrBrightness="$IntBrightness"
+            FakeXrandrBright=true
+            IntBrightness=${NewBright%.*}   # Strip decimals
+            DisplayBrightness="$IntBrightness"
         else
             # Software brightness control
+            FakeXrandrBright=false
+            IntBrightness=0
             Brightness=$(printf %.2f $NewBright)
-            [[ $MonNumber == "1" ]] && echo "$Brightness" > \
-                                            "$CurrentBrightnessFilename"
-            MonCurrBrightness="$Brightness"
+            DisplayBrightness="$Brightness"
         fi
-        
-        xRetn=$(xrandr --output $MonXrandrName --gamma $Gamma \
+
+        # Set software brightness and gamma
+        xRetn=$(xrandr --output $MonXrandrName --gamma $NewGamma \
                 --brightness $Brightness)
 
-        MonCurrGamma="$Gamma"
+        # Set hardware brightness
+        [[ $IntBrightness != 0 ]] && bash -c \
+                                    "echo $IntBrightness | sudo tee $backlight"
+
+        # Set current brightness display file (also used for lid close tracking)
+        [[ $MonNumber == "1" ]] && echo "$DisplayBrightness" > \
+                                        "$CurrentBrightnessFilename"
+
+        # Save current settings to eyesome configuration file
+        MonCurrGamma="$NewGamma"
+        MonCurrBrightness="$DisplayBrightness"
         SetMonitorWorkSpace "$MonNdx"
 
     done
@@ -442,44 +492,4 @@ SetBrightness () {
 
 } # SetBrightness
 
-log() {
 
-    # Wrapper script for logger command
-
-    # PARM: $1 Message to print
-    #       $$=pid of bash script
-    #       $0=name of bash scxript
-    #       $#=Number of paramters passed
-    
-    local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-    Basename="$0"
-    Basename="${Basename##*/}"
-
-    case $Basename in
-        eyesome.sh)
-            ScriptName=Daemon;;
-        wake-eyesome.sh)
-            # Three pgorams can call, how to narrow down? pstree?
-            ScriptName=Wakeup;;
-        acpi-lid-eyesome.sh)
-            ScriptName="Lid Open/Close";;
-        eyesome-cfg.sh)
-            ScriptName=Setup;;
-        eyesome-sun.sh)
-            ScriptName="Sun Times";;
-        *)
-            ScriptName="eyesome-src.sh Function: log() - unknown name";;
-    esac
-
-    if [ $# -ne 1 ]; then
-        Msg="eyesome-src.sh Function: log() wrong number of parameters: $#"
-    else
-        Msg="$1"
-    fi
-
-#    logger --id=$$ -s -t "eyesome" "$ScriptName: $Msg"
-#    logger -s -t "eyesome" "$ScriptName: $Msg"
-    logger --id=$$ -t "eyesome" "$ScriptName: $Msg"
-
-} # log

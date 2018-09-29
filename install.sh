@@ -20,7 +20,7 @@ CopyFiles () {
     install -v ./eyesome-sun.sh         /usr/local/bin/
     install -v ./wake-eyesome.sh        /usr/local/bin/
     cp      -v ./start-eyesome          /etc/cron.d/
-    cp      -v ./daily-eyesome-sun      /etc/cron.daily/
+    install -v ./daily-eyesome-sun      /etc/cron.daily/
     install -v ./systemd-wake-eyesome   /lib/systemd/system-sleep/
     install -v ./acpi-lid-eyesome.sh    /etc/acpi/
     cp      -v ./acpi-lid-event-eyesome /etc/acpi/events/

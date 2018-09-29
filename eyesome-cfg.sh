@@ -203,7 +203,9 @@ MainMenu () {
     NextCheckTime=$(date --date="$NextDate" +'%I:%M:%S %p') # Now + Sleep
     LastCheckTime=$(date +'%I:%M:%S %p') # Now
 
-    Dummy=$(yad  --form \
+    # Getting dozens of Green Beakers (yad icons) in taskbar when left running
+    # and auto updating every 15 seconds. Use --skip-taskbar
+    Dummy=$(yad  --form --skip-taskbar \
         --image=preferences-desktop-screensaver \
         --window-icon=preferences-desktop-screensaver \
         --margins=10 \
