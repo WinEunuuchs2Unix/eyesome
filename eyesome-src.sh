@@ -8,7 +8,7 @@
 # NOTE: You do not have to specify directory because $PATH is searched.
 #       This will not work with shebang #!/bin/sh it MUST be #!/bin/bash
 
-# DATE: Feb 17, 2017. Modified: Sep 29, 2018.
+# DATE: Feb 17, 2017. Modified: Oct 1, 2018.
 
 OLD_IFS=$IFS
 IFS="|"
@@ -39,6 +39,7 @@ EyesomeSunProgram=/usr/local/bin/eyesome-sun.sh
 WakeEyesome=/usr/local/bin/wake-eyesome.sh
 SystemdWakeEyesome=/lib/systemd/system-sleep/systemd-wake-eyesome
 EyesomeIsSuspending=/tmp/eyesome-is-suspending
+
 log() {
 
     # Wrapper script for logger command
@@ -347,21 +348,25 @@ CalcNew () {
     # Sets NewReturn to new value
     # Parm: 1= Source Value (9999.999999)
     #       2= Target Value (9999.999999)
-    #       3= Progress .999999 in six decimals. At start of transition
-    #          progress is .000001 & nearing end of transition it is .999999
+    #       3= Progress percent to six decimal places. Start of transition is
+    #          about .999999 nearing end is about .000001
 
-    st=$(echo "$1 < $2" | bc)
+    st=$(echo "$1 < $2" | bc)   # Returns 1 when true
 
     if [[ $st -eq 1 ]] ; then
-        # Target >= Source
+        # Source < Target
+        # Generally moving from Night to Day (but not always)
         Diff=$( bc <<< "scale=6; $2 - $1" )
         Diff=$( bc <<< "scale=6; $Diff * $3" )
-        NewReturn=$( bc <<< "scale=6; $1 + $Diff" )
+        NewReturn=$( bc <<< "scale=6; $2 - $Diff" )
+        # log "source < target (incr.) st=$st \$1=$1 \$2=$2 \$3=$3 Diff: $Diff New Return: $NewReturn"
     else
-        # Target < Source
+        # Source >= Target
+        # Generally moving from Day to Night (but not always)
         Diff=$( bc <<< "scale=6; $1 - $2" )
         Diff=$( bc <<< "scale=6; $Diff * $3" )
         NewReturn=$( bc <<< "scale=6; $2 + $Diff" )
+        # log "source >= target (decr.) st=$st \$1=$1 \$2=$2 \$3=$3 Diff: $Diff New Return: $NewReturn"
     fi
 
 } # CalcNew
@@ -382,15 +387,15 @@ CalcBrightness () {
             NewGamma="$MonDayRed:$MonDayGreen:$MonDayBlue"
             NewBright="$MonDayBrightness"
         else
-            CalcNew $MonNgtRed $MonDayRed $2
+            CalcNew $MonNgtRed $MonDayRed "$2"
             NewRed=$NewReturn
-            CalcNew $MonNgtGreen $MonDayGreen $2
+            CalcNew $MonNgtGreen $MonDayGreen "$2"
             NewGreen=$NewReturn
-            CalcNew $MonNgtBlue $MonDayBlue $2
+            CalcNew $MonNgtBlue $MonDayBlue "$2"
             NewBlue=$NewReturn
             NewGamma="$NewRed:$NewGreen:$NewBlue"
 
-            CalcNew $MonNgtBrightness $MonDayBrightness $2
+            CalcNew $MonNgtBrightness $MonDayBrightness "$2"
             NewBright=$NewReturn
         fi
     else
@@ -400,22 +405,21 @@ CalcBrightness () {
             NewBright="$MonNgtBrightness"
         else
             # Parameter 2 passed. Use it as adjustment factor (transitioning).
-            CalcNew $MonDayRed $MonNgtRed $2
+            CalcNew $MonDayRed $MonNgtRed "$2"
             NewRed=$NewReturn
-            CalcNew $MonDayGreen $MonNgtGreen $2
+            CalcNew $MonDayGreen $MonNgtGreen "$2"
             NewGreen=$NewReturn
-            CalcNew $MonDayBlue $MonNgtBlue $2
+            CalcNew $MonDayBlue $MonNgtBlue "$2"
             NewBlue=$NewReturn
             NewGamma="$NewRed:$NewGreen:$NewBlue"
 
-            CalcNew $MonDayBrightness $MonNgtBrightness $2
+            CalcNew $MonDayBrightness $MonNgtBrightness "$2"
             NewBright=$NewReturn
         fi
     fi
 
-# TODO: Changing sound between monitors can reset brightness.
 # Remove comment below to log values to journalctl / syslog
-#[[ $MonNumber == "1" ]] && log "Mon #: $MonNumber Day: $MonDayBrightness Ngt: $MonNgtBrightness Curr: $NewBright"
+# [[ $MonNumber == "1" ]] && log "Mon #: \$1=$1 \$2=$2 $MonNumber Day: $MonDayBrightness Ngt: $MonNgtBrightness Bright: $NewBright Gamma: $NewGamma"
 
 } # CalcBrightness
 
@@ -436,16 +440,16 @@ SetBrightness () {
     InitXrandrArray
     aAllMon=()      # Used in eyesome-cfg.sh, NOT used in eyesome.sh
     
-    for MonNdx in ${aMonNdx[@]}; do
+    for MonNdx in "${aMonNdx[@]}"; do
     
-        GetMonitorWorkSpace $MonNdx
+        GetMonitorWorkSpace "$MonNdx"
 
         # aAllMon used by TestBrightness () in eyesome-cfg.sh
         aAllMon+=("# ")
         aAllMon+=("# Monitor Number: $MonNumber")
         aAllMon+=("# Name: $MonName")
         aAllMon+=("# Status: $MonStatus")
-        SearchXrandrArray $MonXrandrName
+        SearchXrandrArray "$MonXrandrName"
         aAllMon+=("# Connection: $XrandrConnection")
         aAllMon+=("# Xrandr CRTC: $XrandrCRTC")
 
@@ -453,35 +457,27 @@ SetBrightness () {
         [[ $XrandrCRTC == "" ]] && continue
         [[ $MonStatus == Disabled ]] && continue
 
-        CalcBrightness $1 $2
+        CalcBrightness "$1" "$2"
 
         if [[ $MonType == "Hardware" ]]; then
             backlight="/sys/class/backlight/$MonHardwareName/brightness"
-            Brightness=1.00    # Fake for xrandr below
-            FakeXrandrBright=true
-            IntBrightness=${NewBright%.*}   # Strip decimals
-            DisplayBrightness="$IntBrightness"
+            DisplayBrightness="${NewBright%.*}"   # Strip decimals
+            # Set software gamma
+            xrandr --output "$MonXrandrName" --gamma "$NewGamma"
+            # Set hardware brightness
+            echo "$DisplayBrightness" > "$backlight"
         else
-            # Software brightness control
-            FakeXrandrBright=false
-            IntBrightness=0
-            Brightness=$(printf %.2f $NewBright)
-            DisplayBrightness="$Brightness"
+            DisplayBrightness=$(printf %.2f "$NewBright") # two decimal places
+            # Set software brightness and gamma
+            xrandr --output "$MonXrandrName" --gamma "$NewGamma" \
+                   --brightness "$DisplayBrightness"
         fi
-
-        # Set software brightness and gamma
-        xRetn=$(xrandr --output $MonXrandrName --gamma $NewGamma \
-                --brightness $Brightness)
-
-        # Set hardware brightness
-        [[ $IntBrightness != 0 ]] && bash -c \
-                                    "echo $IntBrightness | sudo tee $backlight"
 
         # Set current brightness display file (also used for lid close tracking)
         [[ $MonNumber == "1" ]] && echo "$DisplayBrightness" > \
                                         "$CurrentBrightnessFilename"
 
-        # Save current settings to eyesome configuration file
+        # move monitor's new brightness & gamma for future write
         MonCurrGamma="$NewGamma"
         MonCurrBrightness="$DisplayBrightness"
         SetMonitorWorkSpace "$MonNdx"

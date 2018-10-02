@@ -5,7 +5,7 @@
 # DESC: Configuration for eyessome.sh's min/max values, sun rise/set time
 #       and transition minutes.
 # CALL: Called from terminal with `sudo` permissions.
-# DATE: Feb 17, 2017. Modified: Sep 21, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 30, 2018.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
@@ -278,7 +278,11 @@ TestBrightness () {
         --bar=RTL               2>/dev/nul
     
     $WakeEyesome post eyesome-cfg.sh nosleep # $4 remaining sec not used
-    sleep .25    # Give eyesome daemon time to wakeup & sleep before main menu
+
+    # Give eyesome daemon time to wakeup & sleep before main menu repaints.
+    # If time is not long enough main menu will repaint twice after default
+    # sleep seconds delay.
+    sleep .5
 
 } # TestBrightness
 

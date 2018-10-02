@@ -6,26 +6,29 @@
 #       time, sunset time and transition minutes.
 
 # CALL: Called from /etc/cron.d/start-eyesome on system startup.
+
 #       Called from /usr/local/bin/wake-eyesome.sh during resume which in
 #       turn is called from: /lib/systemd/system-sleep/systemd-wake-eyesome
 #       and is called from:  /etc/acpi/acpi-lid-eyesome.sh which in turn is
 #       is called from: /etc/acpi/events/acpi-lid-event-eyesome
 #       Called from eyesome-cfg.sh after 5 second Daytime/Nighttime tests.
 
-# DATE: Feb 17, 2017. Modified: Sep 26, 2018.
+# DATE: Feb 17, 2017. Modified: Oct 1, 2018.
 
 # TODO: Recognize user may have booted with Wayland (no xrandr)
 
 # TODO: Some sort of udev support for monitor hotplugging or physical on/off.
 #       Wihtout udev user will need to use `sudo eyesome-cfg.sh` and click the
-#       Daytime or Nightime 5 second test button.
+#       Daytime or Nightime 5 second test button. Or watch dpms on/off.
 
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 
 export DISPLAY=:0       # For xrandr commands to work.
+SpamOn=0                # > 0 = number of times to spam in loop.
 SpamCount=5             # How many times we will spam (perform short sleep)
 SpamLength=2            # How long spam lasts (how many seconds to sleep)
 SpamContext=""          # Why are we spamming? (Login, Suspend or Lid Event)
+                        # Future use: "DPMS Change" ie Monitor on or off.
 
 SleepResetCheck () {
 
@@ -33,9 +36,11 @@ SleepResetCheck () {
     #       of 2 seconds for 5 iterations as controlled above.
 
     if [[ $SpamOn -gt 0 ]] ; then
-        $(( SpamOn-- ))
+        (( SpamOn-- ))
         sleep $SpamLength
-        if [[ $SpamOn == 1 ]] ; then
+        if [[ $SpamOn == 0 ]] ; then
+            log "$SpamContext: Slept $SpamLength seconds x $SpamCount times."
+            SpamContext=""
             if [[  -f "$EyesomeIsSuspending" ]] ; then
                 # Lid close event can reset external monitors which we need
                 # to trap and spam for. Or it can suspend the system which
@@ -58,10 +63,9 @@ CalcTransitionSleep () {
     #       $2 = total seconds for transition
     #       $3 = number of seconds into transition
 
-    # How far are we into transition? 0.000001 is not very far and
-    # 0.999999 is nearly at end. Yad uses 6 decimal places so eyesome
+    # How far are we into transition? 0.999999 is not very far and
+    # 0.000001 is nearly at end. Yad uses 6 decimal places so eyesome
     # uses same.
-
     Percent=$( bc <<< "scale=6; ( $3 / $2 )" )
 
     SetBrightness "$1" "$Percent"
@@ -114,14 +118,13 @@ CheckForSpam () {
         # This works for kernel 4.13.0-36 because monitors auto reset to 1.00.
         # This doesn't work for 4.4.0-135 because monitors stay black until
         # mouse is moved and user may be slower than 10 seconds.
-        log "Sleeping $SpamLength seconds for $SpamCount times."
     fi
 
     if [[ -f "EyesomeIsSuspending" ]] ; then
-        # Suspending laptop is our reason for spam
-        SpamContext="Resuming"
+        # Resuming from Suspend is our reason for spam
+        SpamContext="Suspend Resume"
     else
-        # SLid Open/Close with external monitor attached is reason for spam
+        # SLid Open/Close (external monitor resets) is reason for spam
         SpamContext="Lid Open/Close"
     fi
     
@@ -180,17 +183,17 @@ while true ; do
     if [[ "$secNow" -gt "$secSunrise" ]] && [[ "$secNow" -lt "$secDayFinal" ]]
     then
     	# Daytime transition from sunrise to Full brightness
-    	secPast=$(( secNow - secSunrise ))
-        CalcTransitionSleep Day $AfterSunriseSeconds $secPast
+    	RemainingSeconds=$(( secDayFinal - secNow )) # secPast is Decreasing
+        CalcTransitionSleep Day $AfterSunriseSeconds $RemainingSeconds
         continue
     fi
 
     # Are we beginning to dim before sunset (full dim)?
     if [[ "$secNow" -gt "$secNgtStart" ]] && [[ "$secNow" -lt "$secSunset" ]]
     then
-    	# Nightime transition from Full bright to before Sunset start
-    	secBefore=$(( secSunset - secNow ))
-        CalcTransitionSleep Ngt $BeforeSunsetSeconds $secBefore
+    	# Nightime transition from Full bright to Sunset
+    	RemainingSeconds=$(( secSunset - secNow )) # secBefore is decreasing
+        CalcTransitionSleep Ngt $BeforeSunsetSeconds $RemainingSeconds
         continue
     fi
 

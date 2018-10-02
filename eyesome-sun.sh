@@ -4,10 +4,14 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: Sep 26, 2018.
+# DATE: Feb 17, 2017. Modified: Sep 30, 2018.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
+
+# NOTE: eyesome.sh daemon starts during boot and will not see todays new
+#       Sunrise / Sunset time until it wakes up. Call wake-eyesome.sh to
+#       force immediate wake after new sun times are obtained.
 
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 
@@ -38,6 +42,7 @@ while true; do
         chmod 666 "$SunsetFilename"
         rm /tmp/eyesome-sunrise
         rm /tmp/eyesome-sunset
+        $WakeEyesome post eyesome-sun.sh nosleep # $4 remaining sec not used
         exit 0
     fi
 
