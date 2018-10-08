@@ -8,7 +8,7 @@
 # NOTE: You do not have to specify directory because $PATH is searched.
 #       This will not work with shebang #!/bin/sh it MUST be #!/bin/bash
 
-# DATE: Feb 17, 2017. Modified: Oct 1, 2018.
+# DATE: Feb 17, 2017. Modified: Oct 8, 2018.
 
 OLD_IFS=$IFS
 IFS="|"
@@ -20,6 +20,8 @@ CFG_SLEEP_NDX=1
 CFG_AFTER_SUNRISE_NDX=2
 CFG_BEFORE_SUNSET_NDX=3
 CFG_TEST_SECONDS_NDX=4
+CFG_DBUS_MONITOR_NDX=5
+
 # 6 spare fields
 CFG_MON1_NDX=10
 CFG_MON2_NDX=30
@@ -28,17 +30,26 @@ CFG_LAST_NDX=69
 CFG_CURR_BRIGHTNESS_OFFSET=14
 CFG_CURR_GAMMA_OFFSET=15
 
+# Data files
 ConfigFilename=/usr/local/bin/.eyesome-cfg
 SunsetFilename=/usr/local/bin/.eyesome-sunset
 SunriseFilename=/usr/local/bin/.eyesome-sunrise
+
+# Programs
 EyesomeDaemon=/usr/local/bin/eyesome.sh
+EyesomeDbusDaemon=/usr/local/bin/eyesome-dbus.sh
 CurrentBrightnessFilename=/tmp/display-current-brightness
 CronStartEyesome=/etc/cron.d/start-eyesome
 CronSunHours=/etc/cron.daily/daily-eyesome-sun
 EyesomeSunProgram=/usr/local/bin/eyesome-sun.sh
+
+# Event management
 WakeEyesome=/usr/local/bin/wake-eyesome.sh
 SystemdWakeEyesome=/lib/systemd/system-sleep/systemd-wake-eyesome
 EyesomeIsSuspending=/tmp/eyesome-is-suspending
+EyesomeLidClose=/tmp/eyesome-lid-close
+EyesomeDbus=/tmp/eyesome-DBUS
+EyesomeUser=/tmp/eyesome-user
 
 log() {
 
@@ -46,7 +57,7 @@ log() {
 
     # PARM: $1 Message to print
     #       $$=pid of bash script
-    #       $0=name of bash scxript
+    #       $0=name of bash script
     #       $#=Number of paramters passed
     
     local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -58,7 +69,7 @@ log() {
         eyesome.sh)
             ScriptName=Daemon;;
         wake-eyesome.sh)
-            # Three pgorams can call, how to narrow down? pstree?
+            # Three programs can call, narrowed down with FIFO named pipe.
             ScriptName=Wakeup;;
         acpi-lid-eyesome.sh)
             ScriptName="Lid Open/Close";;
@@ -66,6 +77,8 @@ log() {
             ScriptName=Setup;;
         eyesome-sun.sh)
             ScriptName="Sun Times";;
+        eyesome-dbus.sh)
+            ScriptName=DBUS;;
         *)
             ScriptName="eyesome-src.sh Function: log() - unknown name";;
     esac
@@ -232,6 +245,7 @@ CreateConfiguration () {
     CfgArr[$CFG_BEFORE_SUNSET_NDX]=90
     CfgArr[$CFG_AFTER_SUNRISE_NDX]=120
     CfgArr[$CFG_TEST_SECONDS_NDX]=5
+    CfgArr[$CFG_DBUS_MONITOR_NDX]=FALSE # YAD checkboxes uses TRUE/FALSE
 
     # Deafult Daytime brightness
     backlight=$(ls /sys/class/backlight)
@@ -324,13 +338,19 @@ ReadConfiguration () {
     if [[ -s "$SunsetFilename" ]];  then sunset=$(cat "$SunsetFilename")
                                     else sunset="8:37 pm" ; fi    
 
+    # TODO: When editing country/city if user presses <Tab> to move to next
+    #       input field the characters `\t` are appended and hidden from view.
     SunHoursAddress="${CfgArr[CFG_SUNCITY_NDX]}"
     # cut yad's 6 decimal positions using "%.*"
     UpdateInterval="${CfgArr[CFG_SLEEP_NDX]%.*}"
     MinAfterSunrise="${CfgArr[CFG_AFTER_SUNRISE_NDX]%.*}"
     MinBeforeSunset="${CfgArr[CFG_BEFORE_SUNSET_NDX]%.*}"
     TestSeconds="${CfgArr[CFG_TEST_SECONDS_NDX]%.*}"
-
+    if [[ "${CfgArr[$CFG_DBUS_MONITOR_NDX]}" == TRUE ]] ; then
+        fUseDbusMonitor=true
+    else
+        fUseDbusMonitor=false
+    fi
     # Internal array of Xrandr all setings for faster searches
     aXrandr=( $(xrandr --verbose --current) )
 
@@ -462,10 +482,17 @@ SetBrightness () {
         if [[ $MonType == "Hardware" ]]; then
             backlight="/sys/class/backlight/$MonHardwareName/brightness"
             DisplayBrightness="${NewBright%.*}"   # Strip decimals
-            # Set software gamma
-            xrandr --output "$MonXrandrName" --gamma "$NewGamma"
             # Set hardware brightness
+            # TODO: During transition phase the backlight brightness isn't
+            #       changing. At end of phase duing Daytime or Nighttime test
+            #       to save value doesn't change display. If testing opposite
+            #       time of day, it resets. The values appear in /backlight
+            #       directory but it simply doesn't change screen. Remove xrandr
+            #       command to see if that causes confusing.
             echo "$DisplayBrightness" > "$backlight"
+            # Set software gamma only, no brightness
+            sleep .1
+            xrandr --output "$MonXrandrName" --gamma "$NewGamma"
         else
             DisplayBrightness=$(printf %.2f "$NewBright") # two decimal places
             # Set software brightness and gamma
@@ -487,5 +514,4 @@ SetBrightness () {
     WriteConfiguration
 
 } # SetBrightness
-
 

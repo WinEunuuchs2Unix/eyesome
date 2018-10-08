@@ -7,14 +7,15 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Sepetmber 26, 2018.
+# DATE: August 2017. Modified: Oct 8, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "Suspend" or "Hibernate"
 #            eyesome-cfg-sh = "eyesome-cfg.sh"
 #            acpi-lid-eyesome.sh = "LidOpenClose"
+#            eyesome-dbus.sh = "eyesome-dbus.sh"
 #       $3 = "nosleep" skip sleep time for eyesome-cfg.sh and LidOpenClose
-#       $4 = CLI or eyesome-cfg.sh pass "remain" to display seconds remaining
+#       $4 = Using eyesome-cfg.sh pass "remain" to display seconds remaining
 #            but don't kill the sleep command.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
@@ -60,23 +61,27 @@ case $1/$2 in
                 print $t'
         else
             printf "0"  # Was not sleeping when checked, 0 time remaining
+            EyesomeID=$(pstree -g -p | grep "${EyesomeDaemon##*/}")
+            log "No time remaining for eyesome.sh process ID: $EyesomeID"
         fi
         exit 0
     fi
 
     if [[ $pID == "" ]] ; then
-        log "Sleeping process ID of eyesome daemon not found!"
-        exit 0  # eyesome.sh not running or it wasn't sleeping
+        printf "0"  # eyesome.sh daemon isn't running
+        EyesomeID=$(pstree -g -p | grep "${EyesomeDaemon##*/}")
+        log "Sleeping process ID of eyesome daemon: $EyesomeID not found!"
+        exit 0
     fi
 
     # Removing file informs daemon we are resuming from suspend or laptop
     # lid was opened/closed. In this case Lightdm takes about 10 seconds
     # reseting some slower TVs/Monitors once or twice. Each reset causes
     # brightness and gamma to reset to 1.00.
-    [[ $2 != "eyesome-cfg.sh" ]] && rm -f "$CurrentBrightnessFilename"
+    [[ $2 != eyesome-cfg.sh ]] && rm -f "$CurrentBrightnessFilename"
     
     # Wake up eyesome.sh daemon by killing it's sleep command
-    kill $pID  # kill sleep command forcing eyesome.sh to wakeup now.
+    kill "$pID"  # kill sleep command forcing eyesome.sh to wakeup now.
     # log "Sleep pID: '$pID' has been killed."
         
     ;;

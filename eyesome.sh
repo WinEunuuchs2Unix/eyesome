@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2154
 
 # NAME: eyesome.sh
 # PATH: /usr/local/bin
@@ -12,15 +13,13 @@
 #       and is called from:  /etc/acpi/acpi-lid-eyesome.sh which in turn is
 #       is called from: /etc/acpi/events/acpi-lid-event-eyesome
 #       Called from eyesome-cfg.sh after 5 second Daytime/Nighttime tests.
+#       Called from wake-eyesome.sh which is called from eyesome-dbus-monitor.
 
-# DATE: Feb 17, 2017. Modified: Oct 1, 2018.
+# DATE: Feb 17, 2017. Modified: Oct 8, 2018.
 
 # TODO: Recognize user may have booted with Wayland (no xrandr)
 
-# TODO: Some sort of udev support for monitor hotplugging or physical on/off.
-#       Wihtout udev user will need to use `sudo eyesome-cfg.sh` and click the
-#       Daytime or Nightime 5 second test button. Or watch dpms on/off.
-
+## ERRORS shellcheck source=/usr/local/bin/eyesome-src.sh
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 
 export DISPLAY=:0       # For xrandr commands to work.
@@ -49,6 +48,14 @@ SleepResetCheck () {
                 rm -f "$EyesomeIsSuspending"
                 log "Removed file: $EyesomeIsSuspending"
             fi
+            if [[  -f "$EyesomeDbus" ]] ; then
+                # When monitor is unplugged, plugged in, turned on or turned
+                # off about 5 DBUS Monitor events will occur for each active
+                # monitor to find Xrandr device property. Remove the file
+                # that was created to indicate the events occured.
+                rm -f "$EyesomeDbus"
+                log "Removed file: $EyesomeDbus"
+            fi
         fi
     else
         sleep "$1"
@@ -66,12 +73,21 @@ CalcTransitionSleep () {
     # How far are we into transition? 0.999999 is not very far and
     # 0.000001 is nearly at end. Yad uses 6 decimal places so eyesome
     # uses same.
-    Percent=$( bc <<< "scale=6; ( $3 / $2 )" )
+    Percent=$( bc <<< "scale=6; ( $3 / $2 )" ) # WARN: `bc` takes .171 seconds
 
     SetBrightness "$1" "$Percent"
     SleepResetCheck "$UpdateInterval"
 
 } # CalcTransitionSleep
+
+StartListeners () {
+
+    if [[ "$fUseDbusMonitor" == true ]] ; then
+        ("$EyesomeDbusDaemon" &) &  # start deamon as background task
+        log "Launching $EyesomeDbusDaemon daemon"
+    fi
+
+} # StartListeners
 
 WaitForSignOn () {
 
@@ -86,20 +102,25 @@ WaitForSignOn () {
             "$CurrentBrightnessFilename"
 
     # Wait for user to sign on then get Xserver access for xrandr calls
-    user=""
-    while [[ $user == "" ]]; do
+    UserName=""
+    while [[ $UserName == "" ]]; do
 
-        sleep 2
-        TotalWait=$(( TotalWait + 2 ))
+        sleep "$SpamLength"
+        TotalWait=$(( TotalWait + SpamLength ))
 
-        # Find user currently logged in.
-        user="$(who -u | grep -F '(:0)' | head -n 1 | awk '{print $1}')"
+        # Find UserName currently logged in.
+        UserName="$(who -u | grep -F '(:0)' | head -n 1 | awk '{print $1}')"
     done
 
-    log "Waited $TotalWait seconds for $user to login."
+    log "Waited $TotalWait seconds for $UserName to login."
 
     xhost local:root
-    export XAUTHORITY="/home/$user/.Xauthority"
+    export XAUTHORITY="/home/$UserName/.Xauthority"
+
+    if [[ "$fUseDbusMonitor" == true ]] ; then
+        echo "$UserName" > "$EyesomeUser"
+        sync -d "$EyesomeUser"      # Flush buffer immediately
+    fi
 
 } # WaitForSignOn
 
@@ -118,26 +139,34 @@ CheckForSpam () {
         # This works for kernel 4.13.0-36 because monitors auto reset to 1.00.
         # This doesn't work for 4.4.0-135 because monitors stay black until
         # mouse is moved and user may be slower than 10 seconds.
+    else
+        return # Spamming not needed
     fi
 
-    if [[ -f "EyesomeIsSuspending" ]] ; then
+    if [[ -f "$EyesomeIsSuspending" ]] ; then
         # Resuming from Suspend is our reason for spam
-        SpamContext="Suspend Resume"
-    else
-        # SLid Open/Close (external monitor resets) is reason for spam
-        SpamContext="Lid Open/Close"
+        SpamContext="Resuming"
+        return
     fi
+
+    if [[ -f "$EyesomeDbus" ]] ; then
+        # DBUS Monitor triggered by plugging or power on/off external monitor
+        SpamContext="Monitor connect"
+        return
+    fi
+    
+    # Lid Open/Close is reason for spam
+    SpamContext="Lid Open/Close"
     
 } # CheckForSpam
 
-main () {
+LoopForever () {
 
-    WaitForSignOn
-    
 while true ; do
 
+    # Have listeners told us to spam display settings?
     CheckForSpam
-    
+
     # Read hidden configuration file with entries separated by "|" into CfgArr
     # Sunrise and sunset files are also read
     ReadConfiguration
@@ -203,6 +232,15 @@ while true ; do
         
 done # End of forever loop
 
-} # main
+} # LoopForever
 
-main "$@"
+Main () {
+    
+    ReadConfiguration
+    StartListeners
+    WaitForSignOn
+    LoopForever    
+
+} # Main
+
+Main "$@"

@@ -5,12 +5,15 @@
 # DESC: Configuration for eyessome.sh's min/max values, sun rise/set time
 #       and transition minutes.
 # CALL: Called from terminal with `sudo` permissions.
-# DATE: Feb 17, 2017. Modified: Sep 30, 2018.
+# DATE: Feb 17, 2017. Modified: Oct 8, 2018.
+
+# UPDT: Oct 5 2018: Allow lower setting for monitor test from "5" to "1" second
+#       Add new field "Watch external monitor plugging / power switch?"
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
 if [[ $(id -u) != 0 ]]; then # root powers needed to call this script
-    echo >&2 $0 must be called with sudo powers
+    echo >&2 "$0 must be called with sudo powers"
     exit 1
 fi
 
@@ -108,6 +111,10 @@ AddEmptyFields () {
 
 EditConfiguration () {
 
+    # Not enough room in panel anymore for:
+    #   Set internval between 5 and 300 seconds (5 minutes).
+    #   15 to 60 seconds should provide the best results.
+
     # General notebook page
     yad --plug=$KEY --tabnum=1 --form \
         --field="
@@ -126,9 +133,6 @@ The brightness update interval is entered in seconds.
 A longer update interval saves computer resources.  An 
 interval too long will give noticable brightness and
 gamma adjustments that can be distracting.:
-
-Set internval between 5 and 300 seconds (5 minutes).
-15 to 60 seconds should provide the best results.
 :NUM" \
         "${CfgArr[CFG_SLEEP_NDX]}"!5..300!1!0 \
         --field="Transition minutes after sunrise to full brightness::NUM" \
@@ -140,8 +144,10 @@ Monitor test button duration in seconds. You can enter
 5 to 20 seconds. The test may be interupted by eyesome
 transition if testing after sunrise and before sunset.:
 :NUM" \
-        "${CfgArr[CFG_TEST_SECONDS_NDX]}"!5..20!1!0 \
-         > "$res1" &
+        "${CfgArr[CFG_TEST_SECONDS_NDX]}"!1..20!1!0 \
+        --field="Watch external monitor plugging / power switching:CHK" \
+        "${CfgArr[CFG_DBUS_MONITOR_NDX]}" \
+                     > "$res1" &
 
     # Monitor 1 notebook page
     BuildMonitorPage "$CFG_MON1_NDX"
@@ -174,7 +180,7 @@ transition if testing after sunrise and before sunset.:
     # Save configuration
     truncate -s -1 "$res1"  # Remove new line at EOF
     cat "$res1" >  "$ConfigFilename"
-    AddEmptyFields 5        # Extra fields for future use
+    AddEmptyFields 4        # Extra fields for future use
     truncate -s -1 "$res2"  # Remove new line at EOF
     cat "$res2" >>  "$ConfigFilename"
     AddEmptyFields 4        # Extra fields for future use
@@ -195,9 +201,11 @@ MainMenu () {
     SecondsToUpdate=$("$WakeEyesome" post eyesome-cfg.sh nosleep remain)
 
     # Blowout protection blank, 0 or negative (bug)
-    [[ $SecondsToUpdate == "" ]] || [[ $SecondsToUpdate == 0 ]] \
-        || [[ $SecondsToUpdate == -* ]] \
-        && SecondsToUpdate="${CfgArr[$CFG_SLEEP_NDX]%.*}"
+    if [[ $SecondsToUpdate == "" ]] || [[ $SecondsToUpdate == 0 ]] \
+        || [[ $SecondsToUpdate == -* ]] ; then
+        log "Seconds to update invalid value: $SecondsToUpdate"
+        SecondsToUpdate="${CfgArr[$CFG_SLEEP_NDX]%.*}"
+    fi
 
     NextDate=$(date --date="$SecondsToUpdate seconds") # Sleep seconds Epoch
     NextCheckTime=$(date --date="$NextDate" +'%I:%M:%S %p') # Now + Sleep
@@ -278,11 +286,6 @@ TestBrightness () {
         --bar=RTL               2>/dev/nul
     
     $WakeEyesome post eyesome-cfg.sh nosleep # $4 remaining sec not used
-
-    # Give eyesome daemon time to wakeup & sleep before main menu repaints.
-    # If time is not long enough main menu will repaint twice after default
-    # sleep seconds delay.
-    sleep .5
 
 } # TestBrightness
 
@@ -398,9 +401,8 @@ Click the <b><i>Start</i></b> button below to start '$EyesomeDaemon'.:LBL" \
         Retn="$?"
         
         if [[ $Retn == "$ButnStart" ]] ; then
-# TODO: Use $EyesomeDaemon variable
-            (eyesome.sh &) &            # start deamon as background task
-            sleep .25                        # .5 to allow daemon to sleep
+            ("$EyesomeDaemon" &) &          # start deamon as background task
+            sleep .5                        # .5 to allow daemon to sleep
         else
             return 1                        # Quit
         fi
@@ -413,7 +415,7 @@ Click the <b><i>Start</i></b> button below to start '$EyesomeDaemon'.:LBL" \
 #            MAINLINE             #
 ###################################
 
-main () {
+Main () {
 
     # ReadConfiguration # This is already done somewhere, but where?
 
@@ -424,6 +426,11 @@ main () {
     ButnQuit=50
 
     while true ; do
+
+        # Give eyesome.sh daemon time to wakeup & sleep before menu repaints.
+        # If time is not long enough main menu will repaint twice after Update
+        # Interval followed by deamon's long sleep cycle.
+        sleep .5
 
         MainMenu
         
@@ -440,7 +447,7 @@ main () {
             # TODO: Last brightness/gamma isn't reset after nighttime test
         elif [[ $Retn == "$ButnQuit" ]] ; then
             break
-        fi
+        fi  # At this point clicked refresh button or menu timed out.
 
     done
 
@@ -448,6 +455,6 @@ main () {
     Cleanup
     exit 0
 
-} # main
+} # Main
 
-main "$@"
+Main "$@"

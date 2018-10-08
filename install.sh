@@ -3,7 +3,7 @@
 # NAME: install.sh
 # PATH: Current directory where files downloaded from github
 # DESC: Copy eyesome scripts / command files to target directories
-# DATE: September 21 2018.
+# DATE: September 21, 2018. Modified: Oct 7, 2018.
 
 # PARM: $1=dev developer mode, publish files
 #         =rm  remove files
@@ -24,6 +24,7 @@ CopyFiles () {
     install -v ./systemd-wake-eyesome   /lib/systemd/system-sleep/
     install -v ./acpi-lid-eyesome.sh    /etc/acpi/
     cp      -v ./acpi-lid-event-eyesome /etc/acpi/events/
+    install -v ./eyesome-dbus.sh        /usr/local/bin/
 
 } # CopyFiles
 
@@ -43,6 +44,7 @@ RemoveFiles () {
     rm -v -f /lib/systemd/system-sleep/systemd-wake-eyesome
     rm -v -f /etc/acpi/acpi-lid-eyesome.sh
     rm -v -f /etc/acpi/events/acpi-lid-event-eyesome
+    rm -v -f /usr/local/bin/eyesome-dbus.sh
 
     echo 
     echo All eyesome programs have been removed, except data files:
@@ -80,6 +82,7 @@ PublishFiles () {
     cp -v /lib/systemd/system-sleep/systemd-wake-eyesome .
     cp -v /etc/acpi/acpi-lid-eyesome.sh .
     cp -v /etc/acpi/events/acpi-lid-event-eyesome .
+    cp -v /usr/local/bin/eyesome-dbus.sh .
 
     md5sum \
         install.sh \
@@ -93,6 +96,7 @@ PublishFiles () {
         systemd-wake-eyesome \
         acpi-lid-eyesome.sh \
         acpi-lid-event-eyesome \
+        eyesome-dbus.sh \
         > eyesome.md5
 
     echo
