@@ -7,7 +7,7 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Oct 8, 2018.
+# DATE: August 2017. Modified: Oct 10, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "Suspend" or "Hibernate"
@@ -24,7 +24,7 @@ case $1/$2 in
   pre/*)
     echo YES > "$EyesomeIsSuspending"
     sync -d "$EyesomeIsSuspending"
-    log "Going to $2.  Creating: $EyesomeIsSuspending"
+    log "Suspending.  Creating $EyesomeIsSuspending"
     ;;
   post/*)
   
@@ -74,6 +74,16 @@ case $1/$2 in
         exit 0
     fi
 
+    # eyesome-dbus processes many transactions per second from RAM and can't
+    # wait 3 seconds to see if suspend is in process. So do it here.
+    if [[ $2 != eyesome-dbus.sh ]] ; then
+        sleep 3
+        if [[ -f "$EyesomeIsSuspending" ]] ; then
+            log "System is supending, Cancel DBUS waking eyesome"
+            exit 0 # Don't want to reset brightness!
+        fi
+    fi
+    
     # Removing file informs daemon we are resuming from suspend or laptop
     # lid was opened/closed. In this case Lightdm takes about 10 seconds
     # reseting some slower TVs/Monitors once or twice. Each reset causes
