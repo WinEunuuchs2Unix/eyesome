@@ -96,3 +96,43 @@ your download is intact and secure.
 
 You can use `sudo install.sh rm` to remove the eyesome programs. You can
 install them again later and your configuration files will still be intact.
+
+## Messages
+
+To see eyesome daemon messages the eaiest way is with the terminal command:
+
+    journalctl -b| grep eyesome
+
+You will see something like this:
+
+Oct 09 20:56:49 alien CRON[998]: (root) CMD (   /usr/local/bin/eyesome.sh)
+Oct 09 20:56:49 alien eyesome[1032]: Daemon: Launching /usr/local/bin/eyesome-dbus.sh daemon
+Oct 09 20:56:49 alien eyesome[1045]: DBUS: Starting DBUS-Monitor using type=method_call, interface=org.freedesktop.ColorManager, path=/org/freedesktop/ColorManager, member=FindDeviceByProperty
+Oct 09 20:56:56 alien eyesome[2025]: DBUS: Event Count: 5 over: 7 seconds
+Oct 09 20:56:56 alien eyesome[2033]: DBUS: Waiting for user to log in, not waking up eyesome
+Oct 09 20:57:03 alien eyesome[2490]: Daemon: Waited 14 seconds for rick to login.
+Oct 09 20:57:09 alien eyesome[2800]: DBUS: Event Count: 27 over: 13 seconds
+Oct 09 20:57:09 alien eyesome[2808]: DBUS: rick logged in 6 seconds, not waking eyesome
+Oct 09 20:57:15 alien eyesome[3950]: Daemon: Login: Slept 2 seconds x 5 times.
+
+Then when suspending and resuming you will see something like this:
+
+Oct 10 05:47:09 alien eyesome[12434]: Lid Open/Close: Wait 3 seconds to see if suspending
+Oct 10 05:47:11 alien eyesome[12490]: DBUS: Event Count: 45 over: 4830 seconds
+Oct 10 05:47:11 alien eyesome[12495]: DBUS: Waking up /usr/local/bin/eyesome.sh
+Oct 10 05:47:11 alien eyesome[12504]: Wakeup: Called from eyesome-dbus.sh.
+Oct 10 05:47:13 alien eyesome[12656]: Lid Open/Close: DBUS is responding, not waking eyesome
+Oct 10 05:47:22 alien eyesome[13215]: Daemon: Monitor connect: Slept 2 seconds x 5 times.
+Oct 10 05:47:22 alien eyesome[13218]: Daemon: Removed file: /tmp/eyesome-DBUS
+Oct 10 05:51:44 alien eyesome[28367]: Wakeup: Suspending.  Creating /tmp/eyesome-is-suspending
+Oct 10 16:30:59 alien eyesome[28563]: Lid Open/Close: Wait 3 seconds to see if suspending
+Oct 10 16:30:59 alien eyesome[28599]: Wakeup: Called from suspend.
+Oct 10 16:31:01 alien eyesome[28736]: DBUS: Event Count: 54 over: 38630 seconds
+Oct 10 16:31:01 alien eyesome[28741]: DBUS: Waking up /usr/local/bin/eyesome.sh
+Oct 10 16:31:01 alien eyesome[28752]: Wakeup: Called from eyesome-dbus.sh.
+Oct 10 16:31:02 alien eyesome[28850]: Lid Open/Close: System is supending, not waking eyesome
+Oct 10 16:31:02 alien eyesome[28852]: Wakeup: System is supending, Cancel DBUS waking eyesome
+Oct 10 16:31:13 alien eyesome[30017]: Daemon: Resuming: Slept 2 seconds x 5 times.
+Oct 10 16:31:13 alien eyesome[30020]: Daemon: Removed file: /tmp/eyesome-is-suspending
+Oct 10 16:31:13 alien eyesome[30023]: Daemon: Removed file: /tmp/eyesome-DBUS
+
