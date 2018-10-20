@@ -7,14 +7,16 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Oct 10, 2018.
+# DATE: August 2017. Modified: Oct 20, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "Suspend" or "Hibernate"
 #            eyesome-cfg-sh = "eyesome-cfg.sh"
 #            acpi-lid-eyesome.sh = "LidOpenClose"
 #            eyesome-dbus.sh = "eyesome-dbus.sh"
-#       $3 = "nosleep" skip sleep time for eyesome-cfg.sh and LidOpenClose
+#            eyesome-sun.sh = "eyesome-sun.sh"
+#       $3 = "nosleep" skip sleep time for eyesome-cfg.sh and eyesome-sun.sh
+#            TODO: rename `nosleep` to `nospam` in version 1.1
 #       $4 = Using eyesome-cfg.sh pass "remain" to display seconds remaining
 #            but don't kill the sleep command.
 
@@ -28,9 +30,7 @@ case $1/$2 in
     ;;
   post/*)
   
-    #[[ $3 != nosleep ]] && sleep 1.5   # Redundant as eyesome.sh spams sleep
-
-    [[ $4 != remain ]] && \
+    [[ "$4" != "remain" ]] && \
         log "Called from $2."  # When $4=remain no chatter, just secs.
 
     # Find running tree processes containing "eyesome.sh" AND "sleep"
@@ -67,28 +67,30 @@ case $1/$2 in
         exit 0
     fi
 
-    if [[ $pID == "" ]] ; then
-        printf "0"  # eyesome.sh daemon isn't running
-        EyesomeID=$(pstree -g -p | grep "${EyesomeDaemon##*/}")
-        log "Sleeping process ID of eyesome daemon: $EyesomeID not found!"
-        exit 0
-    fi
-
     # eyesome-dbus processes many transactions per second from RAM and can't
     # wait 3 seconds to see if suspend is in process. So do it here.
-    if [[ $2 != eyesome-dbus.sh ]] ; then
+    # Suspend will wake up eyesome first so there will be no sleep PID to kill.
+    if [[ "$2" == "eyesome-dbus.sh" ]] ; then
+        log "DBUS: Waiting 3 seconds to see if system is supending"
         sleep 3
         if [[ -f "$EyesomeIsSuspending" ]] ; then
             log "System is supending, Cancel DBUS waking eyesome"
             exit 0 # Don't want to reset brightness!
         fi
     fi
+
+    if [[ "$pID" == "" ]] ; then
+        printf "0"  # eyesome.sh daemon isn't running
+        EyesomeID=$(pstree -g -p | grep "${EyesomeDaemon##*/}")
+        log "Sleeping process ID of eyesome daemon: $EyesomeID not found!"
+        exit 0
+    fi
     
-    # Removing file informs daemon we are resuming from suspend or laptop
+    # Removing file informs daemon we are resuming from suspend, DBUS or
     # lid was opened/closed. In this case Lightdm takes about 10 seconds
     # reseting some slower TVs/Monitors once or twice. Each reset causes
     # brightness and gamma to reset to 1.00.
-    [[ $2 != eyesome-cfg.sh ]] && rm -f "$CurrentBrightnessFilename"
+    [[ "$3" != "nosleep" ]] && rm -f "$CurrentBrightnessFilename"
     
     # Wake up eyesome.sh daemon by killing it's sleep command
     kill "$pID"  # kill sleep command forcing eyesome.sh to wakeup now.

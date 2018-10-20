@@ -8,7 +8,7 @@
 # NOTE: You do not have to specify directory because $PATH is searched.
 #       This will not work with shebang #!/bin/sh it MUST be #!/bin/bash
 
-# DATE: Feb 17, 2017. Modified: Oct 8, 2018.
+# DATE: Feb 17, 2017. Modified: Oct 14, 2018.
 
 OLD_IFS=$IFS
 IFS="|"
@@ -484,14 +484,9 @@ SetBrightness () {
             DisplayBrightness="${NewBright%.*}"   # Strip decimals
             # Set hardware brightness
             # TODO: During transition phase the backlight brightness isn't
-            #       changing. At end of phase duing Daytime or Nighttime test
-            #       to save value doesn't change display. If testing opposite
-            #       time of day, it resets. The values appear in /backlight
-            #       directory but it simply doesn't change screen. Remove xrandr
-            #       command to see if that causes confusing.
+            #       changing when value <19. When 19 changes occur in jumps.
+            #       When 20 brightness changes normally.
             echo "$DisplayBrightness" > "$backlight"
-            # Set software gamma only, no brightness
-            sleep .1
             xrandr --output "$MonXrandrName" --gamma "$NewGamma"
         else
             DisplayBrightness=$(printf %.2f "$NewBright") # two decimal places

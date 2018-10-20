@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: Sep 30, 2018.
+# DATE: Feb 17, 2017. Modified: Oct 17, 2018.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -16,6 +16,10 @@
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 
 ReadConfiguration       # Get $SunCity
+
+sleep 120               # Give user 2 minutes to sign-on. We don't want our
+                        # wakeup to clash with eyesome-dbus.sh, acpi-lid-
+                        # eyesome.sh or login activity. All who spam.
 
 retry_sleep=60          # 1 minutes first time, then doubling each loop
 
