@@ -3,10 +3,10 @@
 c42766c412b31c45d814efea36c1021b  eyesome-cfg.sh
 cc65c370a6ec8c61da0e9c78cb6fe551  eyesome-src.sh
 21b4f60b310ff91c24f527e996281f36  eyesome-sun.sh
-c9838b5639041d446d373c9a1ee3bc25  wake-eyesome.sh
+81cb916008001972ec13d879231e42a7  wake-eyesome.sh
 712eff1f4ec14fbf04521674c32aa5b8  start-eyesome
 0cdc4dbb0a383cd97f1e6d0744a6f8e4  daily-eyesome-sun
 5a2abb831f31a7339270868ddd37f745  systemd-wake-eyesome
-e06f195dcf254d65b4f8512d46e44458  acpi-lid-eyesome.sh
+c2ee06bac68f1adf5597b1de4d0b9bc8  acpi-lid-eyesome.sh
 8ce2412bdb1bab4bca6e4921f9ae282b  acpi-lid-event-eyesome
-75b2ca67445960f4a5ba022a9d96522d  eyesome-dbus.sh
+67f5c4b04b8e1227399e90f95669579c  eyesome-dbus.sh
