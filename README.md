@@ -89,7 +89,7 @@ see them again after the first time configuration.
     
 ### Note:
 
-You can also use `isntall.sh -h` or `install.sh --help` for help instructions.
+You can also use `install.sh -h` or `install.sh --help` for help instructions.
 
 You can use `sudo install.sh v` to verify MD5 hash checksums agree which means
 your download is intact and secure.
