@@ -3,11 +3,14 @@
 # NAME: install.sh
 # PATH: Current directory where files downloaded from github
 # DESC: Copy eyesome scripts / command files to target directories
-# DATE: September 21, 2018. Modified: Oct 7, 2018.
+# DATE: September 21, 2018. Modified: June 2, 2020.
 
 # PARM: $1=dev developer mode, publish files
 #         =rm  remove files
 #         =v   verify files (again)
+
+# UPDT: Jun 02 2020 - Default sunrise "7:00 am" and sunset "9:00 pm" files.
+#       Add option to install 'bc'. Correct typos.
 
 CopyFiles () {
 
@@ -19,12 +22,14 @@ CopyFiles () {
     install -v ./eyesome-src.sh         /usr/local/bin/
     install -v ./eyesome-sun.sh         /usr/local/bin/
     install -v ./wake-eyesome.sh        /usr/local/bin/
+    install -v ./eyesome-dbus.sh        /usr/local/bin/
+    cp      -v ./.eyesome-sunrise       /usr/local/bin/
+    cp      -v ./.eyesome-sunset        /usr/local/bin/
     cp      -v ./start-eyesome          /etc/cron.d/
     install -v ./daily-eyesome-sun      /etc/cron.daily/
     install -v ./systemd-wake-eyesome   /lib/systemd/system-sleep/
     install -v ./acpi-lid-eyesome.sh    /etc/acpi/
     cp      -v ./acpi-lid-event-eyesome /etc/acpi/events/
-    install -v ./eyesome-dbus.sh        /usr/local/bin/
 
 } # CopyFiles
 
@@ -39,12 +44,12 @@ RemoveFiles () {
     rm -v -f /usr/local/bin/eyesome-src.sh
     rm -v -f /usr/local/bin/eyesome-sun.sh
     rm -v -f /usr/local/bin/wake-eyesome.sh
+    rm -v -f /usr/local/bin/eyesome-dbus.sh
     rm -v -f /etc/cron.d/start-eyesome
     rm -v -f /etc/cron.daily/daily-eyesome-sun
     rm -v -f /lib/systemd/system-sleep/systemd-wake-eyesome
     rm -v -f /etc/acpi/acpi-lid-eyesome.sh
     rm -v -f /etc/acpi/events/acpi-lid-event-eyesome
-    rm -v -f /usr/local/bin/eyesome-dbus.sh
 
     echo 
     echo All eyesome programs have been removed, except data files:
@@ -77,12 +82,13 @@ PublishFiles () {
     cp -v /usr/local/bin/eyesome-src.sh .
     cp -v /usr/local/bin/eyesome-sun.sh .
     cp -v /usr/local/bin/wake-eyesome.sh .
+    cp -v /usr/local/bin/eyesome-dbus.sh .
+    # intentionally omit /usr/local/bin/.eyesome-sunrise (& set)
     cp -v /etc/cron.d/start-eyesome .
     cp -v /etc/cron.daily/daily-eyesome-sun .
     cp -v /lib/systemd/system-sleep/systemd-wake-eyesome .
     cp -v /etc/acpi/acpi-lid-eyesome.sh .
     cp -v /etc/acpi/events/acpi-lid-event-eyesome .
-    cp -v /usr/local/bin/eyesome-dbus.sh .
 
     md5sum \
         install.sh \
@@ -91,12 +97,14 @@ PublishFiles () {
         eyesome-src.sh \
         eyesome-sun.sh \
         wake-eyesome.sh \
+        eyesome-dbus.sh \
+        .eyesome-sunrise \
+        .eyesome-sunset \
         start-eyesome \
         daily-eyesome-sun \
         systemd-wake-eyesome \
         acpi-lid-eyesome.sh \
         acpi-lid-event-eyesome \
-        eyesome-dbus.sh \
         > eyesome.md5
 
     echo
@@ -111,21 +119,21 @@ Help () {
     echo " \
         
 Eyesome will control up to three monitors including hardware laptop display.
-Each day sunrise and sunset times are automatically retrievedfor your city.
-Configure Daytime and Nighttime brightness and gamma levels for your monitors
+Each day sunrise and sunset times are automatically retrieved for your city.
+Configure Daytime and Nighttime brightness and gamma levels for your monitors.
 Configure the transition duration after sunrise and before sunset to gradually
 adjust brightness and gamma levels so changes are not noticable.
 
 This is the main install/removal/verification program. Your options are:
 
-   sudo install.sh
-   sudo install.sh v
-   sudo install.sh rm
+   sudo ./install.sh
+   sudo ./install.sh v
+   sudo ./install.sh rm
 
-Use the "v" parameter to verify files were downloaded correctly.
-Use the "rm" parameter to remove a previous installation. Data files remain.
-With the first option of no parameters, eyesome is installed.
-After installation configuration eyesome by running 'sudo eyesome-cfg.sh'
+Use 'v' parameter to verify files were downloaded correctly.
+Use 'rm' parameter to remove a previous installation.  Data files remain.
+In the first instance with no parameter passed, eyesome is installed.
+After installation configure eyesome by running 'sudo eyesome-cfg.sh'.
 "
     exit 0
         
@@ -151,7 +159,7 @@ Main () {
     if [[ $(command -v yad) == "" ]]; then
         echo " \
 
-yad package is required for eyesome but it is not installed.
+'yad' package is required for eyesome but it is not installed.
 Do you wish to install it now? 
 
 Enter [y/Y], any other key to skip installation: "
@@ -159,6 +167,20 @@ Enter [y/Y], any other key to skip installation: "
         echo $input
         if [[ $input == y ]] || [[ $input == Y ]] ; then
             sudo apt install yad
+        fi
+    fi
+
+    if [[ $(command -v bc) == "" ]]; then
+        echo " \
+
+'bc' package is required for eyesome but it is not installed.
+Do you wish to install it now? 
+
+Enter [y/Y], any other key to skip installation: "
+        read -rsn1 input
+        echo $input
+        if [[ $input == y ]] || [[ $input == Y ]] ; then
+            sudo apt install bc
         fi
     fi
     

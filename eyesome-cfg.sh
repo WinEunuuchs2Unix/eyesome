@@ -5,10 +5,17 @@
 # DESC: Configuration for eyessome.sh's min/max values, sun rise/set time
 #       and transition minutes.
 # CALL: Called from terminal with `sudo` permissions.
-# DATE: Feb 17, 2017. Modified: Oct 8, 2018.
+# DATE: Feb 17, 2017. Modified: May 18, 2020.
 
 # UPDT: Oct 5 2018: Allow lower setting for monitor test from "5" to "1" second
 #       Add new field "Watch external monitor plugging / power switch?"
+
+#       Dec 26 2018: Change screen to reflect test time of `1 to 20 seconds`.
+
+#       May 18 2020: Add override option to pause eyesome daemon. This allows
+#       user to manually set brightness / color temperature. Make yad window
+#       geometry default to --center instead of top left. Main Menu now
+#       allows 'X' to close window or Escpae Key to exit.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
@@ -30,11 +37,20 @@ if [[ $CurrentTERM == "" ]] ; then
     exit 1
 fi
 
+# Only one instance of eyesome-cfg.sh can be running
+if pidof -o %PPID -x "$EyesomeCfgProgram">/dev/null; then
+    notify-send --urgency=critical \
+    echo "Eyesome configuration is already running"
+    exit 4
+fi
+
 # Read configuration and create if it doesn't exist.
 ReadConfiguration
 
-KEY="23255"     # Key for tying Notebook pages (tabs) together
-                # multi-timer is KEY="12345", don't duplicate
+KEY="23255"         # Key for tying Notebook pages (tabs) together
+                    # multi-timer is KEY="12345", don't resuse same key.
+GEOMETRY="--center" # Center windows on screen
+
 # Temporary files for Notebook output
 res1=$(mktemp --tmpdir iface1.XXXXXXXX) # Notebook Overview Page (Tab 1)
 res2=$(mktemp --tmpdir iface2.XXXXXXXX) # Notebook Monitor 1 Page (Tab 2)
@@ -141,7 +157,7 @@ gamma adjustments that can be distracting.:
         "${CfgArr[CFG_BEFORE_SUNSET_NDX]}"!0..180!1!0 \
         --field="
 Monitor test button duration in seconds. You can enter
-5 to 20 seconds. The test may be interupted by eyesome
+1 to 20 seconds. The test may be interupted by eyesome
 transition if testing after sunrise and before sunset.:
 :NUM" \
         "${CfgArr[CFG_TEST_SECONDS_NDX]}"!1..20!1!0 \
@@ -168,7 +184,7 @@ transition if testing after sunrise and before sunset.:
     #  --image=gnome-calculator
     if yad --notebook --key=$KEY --tab="General" --tab="Monitor 1" \
         --tab="Monitor 2" --tab="Monitor 3" --active-tab="Monitor 2" \
-        --image=sleep --image-on-top \
+        --image=sleep --image-on-top "$GEOMETRY" \
         --title="eyesome setup" --width=400 \
         --text="<big><b>eyesome</b></big> - edit configuration" 2>/dev/null
     then
@@ -213,23 +229,23 @@ MainMenu () {
 
     # Getting dozens of Green Beakers (yad icons) in taskbar when left running
     # and auto updating every 15 seconds. Use --skip-taskbar
-    Dummy=$(yad  --form --skip-taskbar \
+    Dummy=$(yad  --form --skip-taskbar "$GEOMETRY" \
         --image=preferences-desktop-screensaver \
         --window-icon=preferences-desktop-screensaver \
         --margins=10 \
         --title="eyesome setup" \
         --text="<big><b>eyesome</b></big> - main menu" \
         --timeout="$SecondsToUpdate" --timeout-indicator=top \
-        --field="Eyesome daemon time remaining queried at::RO" \
-        --field="Seconds until eyesome daemon wakes up::RO" \
-        --field="Brightness will be set again at::RO" \
+        --field="Eyesome daemon sleep time was last checked at::RO" \
+        --field="Number of seconds until eyesome daemon wakes::RO" \
+        --field="The next time eyesome daemon wakes::RO" \
         --field="
 
-This window will auto refresh when the brightness level
-is checked on your monitor(s).
+This window refreshes when eyesome daemon wakes up to check
+your monitor(s) brightness.
 
-Click the <b><i>Refresh</i></b> button below to refresh how many seconds
-remain until the next auto refresh.
+Click the <b><i>Remaining</i></b> button below to update how many seconds
+remain until brightness is checked by eyesome daemon.
 
 Click the <b><i>Edit</i></b> button below to change the brighness and/or
 gamma monitor levels for Daytime and Nighttime. There you
@@ -243,13 +259,18 @@ Click the <b><i>Daytime</i></b> button below for a $TestSeconds second test of w
 the monitors will look like in daytime. The same $TestSeconds second
 test can be used for nighttime using the <b><i>Nighttime</i></b> button.
 
+Click the <b><i>Override</i></b> button below to pause eyesome daemon.
+You can override color temperature and brightness for all
+monitors. Override on cloudy days or curtains closed.
+
 Click the <b><i>Quit</i></b> button to close this program.
 
 :LBL" \
-        --button="_Refresh:$ButnView" \
+        --button="_Remaining:$ButnRemaining" \
         --button="_Edit:$ButnEdit" \
         --button="_Daytime:$ButnDay"  \
         --button="_Nighttime:$ButnNight" \
+        --button="_Override:$ButnOverride" \
         --button="_Quit:$ButnQuit" \
         "$LastCheckTime" "$SecondsToUpdate" "$NextCheckTime" 2>/dev/null)
 
@@ -261,7 +282,7 @@ TestBrightness () {
 
     # $1 = Day or Ngt
 
-    SetBrightness "$1"      # Same function used by eyesome.sh
+    SetBrightness "$1"      # SetBrightnes function also used by eyesome.sh
 
     eol=$'\n'
     line="${aAllMon[*]}"    # Convert array to string
@@ -289,6 +310,169 @@ TestBrightness () {
 
 } # TestBrightness
 
+# May 18, 2020 - Python code from mmm partially converted to bash
+# GammaRampArr converted to bash from mmm python program
+GammaRampArr=()
+             #   RED          GREEN        BLUE       TEMP
+GammaRampArr+=( 1.00000000  0.05181963  0.00000000   500 ) # NOT ALLOWWED
+GammaRampArr+=( 1.00000000  0.18172716  0.00000000  1000 )
+GammaRampArr+=( 1.00000000  0.42322816  0.00000000  1500 )
+GammaRampArr+=( 1.00000000  0.54360078  0.08679949  2000 )
+GammaRampArr+=( 1.00000000  0.64373109  0.28819679  2500 )
+GammaRampArr+=( 1.00000000  0.71976951  0.42860152  3000 )
+GammaRampArr+=( 1.00000000  0.77987699  0.54642268  3500 )
+GammaRampArr+=( 1.00000000  0.82854786  0.64816570  4000 )
+GammaRampArr+=( 1.00000000  0.86860704  0.73688797  4500 )
+GammaRampArr+=( 1.00000000  0.90198230  0.81465502  5000 )
+GammaRampArr+=( 1.00000000  0.93853986  0.88130458  5500 )
+GammaRampArr+=( 1.00000000  0.97107439  0.94305985  6000 )
+GammaRampArr+=( 1.00000000  1.00000000  1.00000000  6500 )
+GammaRampArr+=( 0.95160805  0.96983355  1.00000000  7000 )
+GammaRampArr+=( 0.91194747  0.94470005  1.00000000  7500 )
+GammaRampArr+=( 0.87906581  0.92357340  1.00000000  8000 )
+GammaRampArr+=( 0.85139976  0.90559011  1.00000000  8500 )
+GammaRampArr+=( 0.82782969  0.89011714  1.00000000  9000 )
+GammaRampArr+=( 0.80753191  0.87667891  1.00000000  9500 )
+GammaRampArr+=( 0.78988728  0.86491137  1.00000000  10000 )
+GammaRampArr+=( 0.77442176  0.85453121  1.00000000  10500 ) # NOT ALLOWWED
+
+: <<'END'
+/* ----------------------------------------------------------------------------
+    May 18, 2020 - Python code from mmm to convert to bash in the future
+
+def adjust_channel(last, current, multiplier):
+    ''' current may be less than last so we are decreasing
+    '''
+
+    if current > last :
+        # normal increasing values
+        added = (current - last) * multiplier
+        return (last + added)
+    else :
+        # decreasing values
+        subtracted = (last - current) * multiplier
+        return (last - subtracted)
+
+def temp_to_gamma(srch_temp):
+    ''' Convert Temp to Gamma (Xrandr Inverted or REAL Gamma returned)
+    '''
+    # Override breaking values
+    srch_temp = int(srch_temp)
+    if srch_temp < 1000  : srch_temp = 1000
+    if srch_temp > 10000 : srch_temp = 10000
+
+    for i, ramp in enumerate (GammaRampArr):
+        red, green, blue, temp = ramp
+        if srch_temp <= temp : break
+        last_red, last_green, last_blue, last_temp = ramp
+
+    full_gap = float(temp - last_temp)
+    multiplier = (srch_temp - last_temp) / full_gap
+
+    r = adjust_channel(last_red, red, multiplier)
+    g = adjust_channel(last_green, green, multiplier)
+    b = adjust_channel(last_blue, blue, multiplier)
+    return (str(round(r,2)) + ":" + str(round(g,2)) + ":" + str(round(b,2)))
+
+# Some tests
+#print (temp_to_gamma(999))
+#print (temp_to_gamma(99999))
+#print (temp_to_gamma(3417))
+
+def gamma_to_temp(srch_gamma):
+    ''' Convert Gamma to Temp (normal and NOT Xrandr Inverted Gamma passed)
+    
+    If red == 1.0, find closest green above and below.
+    If red <> 1.0, find red above and below.
+    
+    TESTING: Use invalid like: `xrandr --output DP-1-1 --gamma 0.0:9.0:5.0`
+                               `xrandr --output DP-1-1 --gamma 2.8:0.0:0.3`
+    '''
+    channels   = srch_gamma.split(":")
+    srch_red   = float(channels[0])
+    srch_green = float(channels[1])
+    srch_blue  = float(channels[2])
+    if srch_red   > 1.0 : srch_red   = 1.0
+    if srch_green > 1.0 : srch_green = 1.0
+    if srch_blue  > 1.0 : srch_blue  = 1.0
+
+    for i, ramp in enumerate (GammaRampArr):
+        red, green, blue, temp = ramp
+
+        if srch_red == 1.0 and blue == 0.0 :
+            # Temperature is 1000K to 1500K
+            if srch_green <= green :
+                #  red static at 1 and blue static at 0 whilst green increasing
+                if i == 0 : continue    # Cannot be first index
+                full_gap = green - last_green
+                multiplier = float(srch_green - last_green) / full_gap
+                break
+
+        elif srch_red == 1.0 and blue != 0.0 :
+            # Temperature is 1501K to 6499K
+            if srch_blue <= blue :
+                #  red static at 1 whilst blue and blue are increasing
+                full_gap = blue - last_blue
+                multiplier = float(srch_blue - last_blue) / full_gap
+                break
+
+        else :
+            # Temperature is over 6499K and cannot be last index 10500 K
+            if srch_red >= red or i == len(GammaRampArr) - 2 :
+                # blue static at 1.0 whilst red and green are decreasing
+                full_gap = last_red - red
+                multiplier = float(last_red - srch_red) / full_gap
+                break
+
+        last_red, last_green, last_blue, last_temp = ramp
+
+    return_temp = float(last_temp) + (500.0 * multiplier)
+    return int(return_temp)
+---------------------------------------------------------------------------- */
+END
+
+Override () {
+
+    # Code lifted from movee.sh update on May 18, 2020.
+    # Get current monitor status to restore when exiting.
+    sMon1Status=$(grep -oP '(?<=\|1\|).*?(?=\|)' "$ConfigFilename")
+    sMon2Status=$(grep -oP '(?<=\|2\|).*?(?=\|)' "$ConfigFilename")
+    sMon3Status=$(grep -oP '(?<=\|3\|).*?(?=\|)' "$ConfigFilename")
+    # Change each Enabled monitor status to Paused.
+    [[ $sMon1Status == Enabled ]] && \
+        sed -i "s/|1|$sMon1Status|/|1|Paused|/g" "$ConfigFilename"
+    [[ $sMon2Status == Enabled ]] && \
+        sed -i "s/|2|$sMon2Status|/|2|Paused|/g" "$ConfigFilename"
+    [[ $sMon3Status == Enabled ]] && \
+        sed -i "s/|3|$sMon3Status|/|3|Paused|/g" "$ConfigFilename"
+
+    while true ; do
+
+        Dummy=$(yad  --form "$GEOMETRY" \
+            --image=preferences-desktop-screensaver \
+            --window-icon=preferences-desktop-screensaver \
+            --margins=10 \
+            --title="eyesome override" \
+            --text="
+<big><b>eyesome</b></big> - Override (Pause eyesome daemon)" \
+            --field="
+You can now manually reset brightness or color for monitor(s).
+Eyesome daemon has been paused and will not change settings
+until this window is closed.:LBL" \
+            --button="_Cancel:$ButnQuit" \
+            2>/dev/null)
+
+        Retn="$?"
+        break
+    done
+
+    # Restore each paused monitor status to enabled setting.
+    sed -i "s/|1|Paused|/|1|Enabled|/g" "$ConfigFilename"
+    sed -i "s/|2|Paused|/|2|Enabled|/g" "$ConfigFilename"
+    sed -i "s/|3|Paused|/|3|Enabled|/g" "$ConfigFilename"
+
+} # Override
+
 CheckSunHours () {
 
     [[ $fSunHoursCheckedOnce == true ]] && return
@@ -308,7 +492,7 @@ CheckSunHours () {
             return 0 # Sunrise / sunset file times are up-to-date.
         fi
 
-        Dummy=$(yad  --form \
+        Dummy=$(yad  --form "$GEOMETRY" \
             --image=preferences-desktop-screensaver \
             --window-icon=preferences-desktop-screensaver \
             --margins=10 \
@@ -374,7 +558,7 @@ CheckEyesomeDaemon () {
         [[ $pID != "" ]] && return 0    # .../eyesome.sh daemon is running
 
         # If you run program to strip trailing spaces add 3 after "will run"    
-        Dummy=$(yad  --form \
+        Dummy=$(yad  --form "$GEOMETRY" \
             --image=preferences-desktop-screensaver \
             --window-icon=preferences-desktop-screensaver \
             --margins=10 \
@@ -419,11 +603,12 @@ Main () {
 
     # ReadConfiguration # This is already done somewhere, but where?
 
-    ButnView=10
+    ButnRemaining=10
     ButnEdit=20
     ButnDay=30
     ButnNight=40
-    ButnQuit=50
+    ButnOverride=50
+    ButnQuit=60
 
     while true ; do
 
@@ -440,18 +625,26 @@ Main () {
             CheckEyesomeDaemon
             # monitor settings may have changed, so wake up eyesome
             $WakeEyesome post eyesome-cfg.sh nosleep
+            continue
         elif [[ $Retn == "$ButnDay" ]] ; then
             TestBrightness Day
+            continue
         elif [[ $Retn == "$ButnNight" ]] ; then
             TestBrightness Ngt
             # TODO: Last brightness/gamma isn't reset after nighttime test
-        elif [[ $Retn == "$ButnQuit" ]] ; then
+            continue
+        elif [[ $Retn == "$ButnOverride" ]] ; then
+            Override
+            continue
+        elif [[ $Retn == "$ButnRemaining" || $Retn == "70" ]] ; then
+            continue    # 70 = menu times out when eyesome daemon wakes
+        else
             break
-        fi  # At this point clicked refresh button or menu timed out.
+        fi  # At this point clicked Quit button or Escape or Window X'd.
 
     done
 
-    # Escape or Quit from yad notebook
+    # End program
     Cleanup
     exit 0
 

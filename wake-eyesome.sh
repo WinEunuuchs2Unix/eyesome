@@ -7,7 +7,7 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Oct 22, 2018.
+# DATE: August 2017. Modified: Oct 28, 2018.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "Suspend" or "Hibernate"
@@ -17,11 +17,13 @@
 #            eyesome-sun.sh = "eyesome-sun.sh"
 #       $3 = "nosleep" skip sleep time for eyesome-cfg.sh and eyesome-sun.sh
 #            Otherwise spam brightness for "LidOpenClose", eyesome-dbus.sh,
-#            "Suspend" or "Hibernate".
+#            blank when $2 = "Suspend" or "Hibernate".
 #       $4 = Using eyesome-cfg.sh pass "remain" to display seconds remaining
 #            but don't kill the sleep command.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
+
+# log "P1: $1 | P2: $2 | P3: $3 | P4: $4"
 
 case $1/$2 in
   pre/*)
@@ -83,7 +85,8 @@ case $1/$2 in
     if [[ "$pID" == "" ]] ; then
         printf "0"  # eyesome.sh daemon isn't running
         EyesomeID=$(pstree -g -p | grep "${EyesomeDaemon##*/}")
-        log "Sleeping process ID of eyesome daemon: $EyesomeID not found!"
+        log "Sleeping process ID of eyesome daemon not found! pstree below:"
+        log "$EyesomeID"
         exit 0
     fi
     

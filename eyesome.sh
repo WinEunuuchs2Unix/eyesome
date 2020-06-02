@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2154
 
 # NAME: eyesome.sh
 # PATH: /usr/local/bin
@@ -7,7 +6,6 @@
 #       time, sunset time and transition minutes.
 
 # CALL: Called from /etc/cron.d/start-eyesome on system startup.
-
 #       Called from /usr/local/bin/wake-eyesome.sh during resume which in
 #       turn is called from: /lib/systemd/system-sleep/systemd-wake-eyesome
 #       and is called from:  /etc/acpi/acpi-lid-eyesome.sh which in turn is
@@ -15,9 +13,13 @@
 #       Called from eyesome-cfg.sh after 5 second Daytime/Nighttime tests.
 #       Called from wake-eyesome.sh which is called from eyesome-dbus-monitor.
 
-# DATE: Feb 17, 2017. Modified: Oct 8, 2018.
+# DATE: Feb 17, 2017. Modified: May 18, 2020.
 
-# TODO: Recognize user may have booted with Wayland (no xrandr)
+# UPDT: Nov 09 2018 - Increase Login SpamCount to 10 (20 seconds) because older
+#       HDMI TV's not quick enough to repsond with 5 (10 seconds).
+
+#       May 18 2020: Last shutdown some monitors may have been overridden to
+#       pause eyesome daemon. If so renable brightness settings on start up.
 
 ## ERRORS shellcheck source=/usr/local/bin/eyesome-src.sh
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
@@ -28,6 +30,15 @@ SpamCount=5             # How many times we will spam (perform short sleep)
 SpamLength=2            # How long spam lasts (how many seconds to sleep)
 SpamContext=""          # Why are we spamming? (Login, Suspend or Lid Event)
                         # Future use: "DPMS Change" ie Monitor on or off.
+
+UnpauseLastSession () {
+    # Same code found in eyesome-cfg.sh and similar code in movie.sh
+    # Restore any paused monitor status to enabled.
+    sed -i "s/|1|Paused|/|1|Enabled|/g" "$ConfigFilename"
+    sed -i "s/|2|Paused|/|2|Enabled|/g" "$ConfigFilename"
+    sed -i "s/|3|Paused|/|3|Enabled|/g" "$ConfigFilename"
+
+} # UnpauseLastSession
 
 SleepResetCheck () {
 
@@ -40,7 +51,7 @@ SleepResetCheck () {
         if [[ $SpamOn == 0 ]] ; then
             log "$SpamContext: Slept $SpamLength seconds x $SpamCount times."
             SpamContext=""
-            if [[  -f "$EyesomeIsSuspending" ]] ; then
+            if [[ -f "$EyesomeIsSuspending" ]] ; then
                 # Lid close event can reset external monitors which we need
                 # to trap and spam for. Or it can suspend the system which
                 # means we did nothing. If file is present after resuming
@@ -48,7 +59,7 @@ SleepResetCheck () {
                 rm -f "$EyesomeIsSuspending"
                 log "Removed file: $EyesomeIsSuspending"
             fi
-            if [[  -f "$EyesomeDbus" ]] ; then
+            if [[ -f "$EyesomeDbus" ]] ; then
                 # When monitor is unplugged, plugged in, turned on or turned
                 # off about 5 DBUS Monitor events will occur for each active
                 # monitor to find Xrandr device property. Remove the file
@@ -95,7 +106,7 @@ WaitForSignOn () {
     # for xrandr external monitor brightness and gamma control. We must
     # wait until user signs on to get .Xauthority file settings.
 
-    SpamOn=$SpamCount       # Causes 10 iterations of 2 second sleep
+    SpamOn=10       # Causes 10 iterations of 2 second sleep
     SpamContext="Login"
     TotalWait=0
     [[ ! -f "$CurrentBrightnessFilename" ]] && rm -f \
@@ -142,7 +153,6 @@ CheckForSpam () {
     else
         return # Spamming not needed
     fi
-
     if [[ -f "$EyesomeIsSuspending" ]] ; then
         # Resuming from Suspend is our reason for spam
         SpamContext="Resuming"
@@ -150,8 +160,8 @@ CheckForSpam () {
     fi
 
     if [[ -f "$EyesomeDbus" ]] ; then
-        # DBUS Monitor triggered by plugging or power on/off external monitor
-        SpamContext="Monitor connect"
+        # DBUS Monitor triggered by hotplug or power on/off external monitor
+        SpamContext="DBUS"
         return
     fi
     
@@ -235,7 +245,8 @@ done # End of forever loop
 } # LoopForever
 
 Main () {
-    
+
+    Unpauselastsession
     ReadConfiguration
     StartListeners
     WaitForSignOn

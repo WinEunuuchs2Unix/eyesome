@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: Oct 22, 2018.
+# DATE: Feb 17, 2017. Modified: August 29, 2019.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -14,8 +14,8 @@
 #       force immediate wake after new sun times are obtained.
 
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
-
-ReadConfiguration       # Get $SunCity
+fCron=true              # Turn off xrandr requests to prevent email error msg.
+ReadConfiguration       # Get $SunCity (also calls xrandr for monitor list)
 
 sleep 120               # Give user 2 minutes to sign-on. We don't want our
                         # wakeup to clash with eyesome-dbus.sh, acpi-lid-
@@ -28,12 +28,12 @@ log "$SunHoursAddress."
 while true; do
 
     ### "-q"= quiet, "-O-" pipe output
-    echo $(wget -q -O- "$SunHoursAddress" \
+    wget -q -O- "$SunHoursAddress" \
         | grep -oE 'Sunrise Today.{35}' | awk -F\> '{print $3}' | \
-        tr --delete "<") > /tmp/eyesome-sunrise
-    echo $(wget -q -O- "$SunHoursAddress" \
+        tr --delete "<" > /tmp/eyesome-sunrise
+    wget -q -O- "$SunHoursAddress" \
         | grep -oE 'Sunset Today.{35}' | awk -F\> '{print $3}' | \
-        tr --delete "<") > /tmp/eyesome-sunset
+        tr --delete "<" > /tmp/eyesome-sunset
 
     ## If network is down files will have one byte size
     size1=$(wc -c < /tmp/eyesome-sunrise)
@@ -46,7 +46,8 @@ while true; do
         chmod 666 "$SunsetFilename"
         rm /tmp/eyesome-sunrise
         rm /tmp/eyesome-sunset
-        $WakeEyesome post eyesome-sun.sh nosleep # $4 remaining sec not used
+        # Can't wake eyesome because cron doesn't have display interface
+        # $WakeEyesome post eyesome-sun.sh nosleep # $4 remaining sec not used
         exit 0
     fi
 

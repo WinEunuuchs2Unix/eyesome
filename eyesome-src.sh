@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2034
+# SC2034: Xxxxx appears unused. Verify it or export it.
 
 # NAME: eyesome-src.sh
 # PATH: /usr/local/bin
@@ -8,7 +10,14 @@
 # NOTE: You do not have to specify directory because $PATH is searched.
 #       This will not work with shebang #!/bin/sh it MUST be #!/bin/bash
 
-# DATE: Feb 17, 2017. Modified: Oct 14, 2018.
+# DATE: Feb 17, 2017. Modified: June 2, 2020.
+
+# UPDT: May 18, 2020 Change test to '[[ $MonStatus != Enabled ]] && continue'
+#           to suppport new 'Paused' option. Test used to be '== Disabled'.
+#       May 28, 2020 Create IPC (Inter Process Communication) filename. Add
+#           color temperature constants and eyesome-cfg.sh file name. Add
+#           Preivew support with "Gam" parameter 1 in SetBrightness ().
+#       Jun 02, 2020 Set defaults: sunrise "7:00 am" and sunset "9:00 pm".
 
 OLD_IFS=$IFS
 IFS="|"
@@ -27,6 +36,10 @@ CFG_MON1_NDX=10
 CFG_MON2_NDX=30
 CFG_MON3_NDX=50
 CFG_LAST_NDX=69
+CFG_MON_OFFSET=10
+CFG_MON_LEN=20
+CFG_DAY_GAMMA_OFFSET=7
+CFG_NIGHT_GAMMA_OFFSET=11
 CFG_CURR_BRIGHTNESS_OFFSET=14
 CFG_CURR_GAMMA_OFFSET=15
 
@@ -34,6 +47,7 @@ CFG_CURR_GAMMA_OFFSET=15
 ConfigFilename=/usr/local/bin/.eyesome-cfg
 SunsetFilename=/usr/local/bin/.eyesome-sunset
 SunriseFilename=/usr/local/bin/.eyesome-sunrise
+ParmFilename=/usr/local/bin/.eyesome-parm           # Future use temporary file
 
 # Programs
 EyesomeDaemon=/usr/local/bin/eyesome.sh
@@ -42,6 +56,7 @@ CurrentBrightnessFilename=/tmp/display-current-brightness
 CronStartEyesome=/etc/cron.d/start-eyesome
 CronSunHours=/etc/cron.daily/daily-eyesome-sun
 EyesomeSunProgram=/usr/local/bin/eyesome-sun.sh
+EyesomeCfgProgram=/usr/local/bin/eyesome-cfg.sh
 
 # Event management
 WakeEyesome=/usr/local/bin/wake-eyesome.sh
@@ -50,6 +65,46 @@ EyesomeIsSuspending=/tmp/eyesome-is-suspending
 EyesomeLidClose=/tmp/eyesome-lid-close
 EyesomeDbus=/tmp/eyesome-DBUS
 EyesomeUser=/tmp/eyesome-user
+
+# Temperature fields that need to be sourced due to limitations in YAD
+# notebook --field BTN that calls 'bash -c' which creates new child process.
+Temperature=6500
+Red=1.00
+Green=1.00
+Blue=1.00
+XorgGammaString="1.00:1.00:1.00"
+
+GRA_RED_OFF=0
+GRA_GRN_OFF=1
+GRA_BLU_OFF=2
+GRA_TMP_OFF=3
+GRA_ENT_LEN=4
+GammaRampNdx=0
+#                 Red         Green       Blue     Color Temperature
+GammaRampArr=( 1.00000000  0.05181963  0.00000000   500 \
+               1.00000000  0.18172716  0.00000000  1000 \
+               1.00000000  0.42322816  0.00000000  1500 \
+               1.00000000  0.54360078  0.08679949  2000 \
+               1.00000000  0.64373109  0.28819679  2500 \
+               1.00000000  0.71976951  0.42860152  3000 \
+               1.00000000  0.77987699  0.54642268  3500 \
+               1.00000000  0.82854786  0.64816570  4000 \
+               1.00000000  0.86860704  0.73688797  4500 \
+               1.00000000  0.90198230  0.81465502  5000 \
+               1.00000000  0.93853986  0.88130458  5500 \
+               1.00000000  0.97107439  0.94305985  6000 \
+               1.00000000  1.00000000  1.00000000  6500 \
+               0.95160805  0.96983355  1.00000000  7000 \
+               0.91194747  0.94470005  1.00000000  7500 \
+               0.87906581  0.92357340  1.00000000  8000 \
+               0.85139976  0.90559011  1.00000000  8500 \
+               0.82782969  0.89011714  1.00000000  9000 \
+               0.80753191  0.87667891  1.00000000  9500 \
+               0.78988728  0.86491137  1.00000000  10000 \
+               0.77442176  0.85453121  1.00000000  10500 \
+             )
+# Temperatures of 500 & 10500 are not allowed. Provided for looping min-max.
+
 
 log() {
 
@@ -60,7 +115,8 @@ log() {
     #       $0=name of bash script
     #       $#=Number of paramters passed
     
-    local now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local now
+    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     Basename="$0"
     Basename="${Basename##*/}"
@@ -101,7 +157,7 @@ GetMonitorWorkSpace () {
     
     i=$1
     MonNumber="${CfgArr[$((i++))]}"          # "1", "2" or "3"
-    MonStatus="${CfgArr[$((i++))]}"          # "Enabled" / "Disabled"
+    MonStatus="${CfgArr[$((i++))]}"          # "Enabled" / "Paused" / "Disabled"
     MonType="${CfgArr[$((i++))]}"            # "Hardware" / "Software"
     MonName="${CfgArr[$((i++))]}"            # "Laptop Display" / '50" Sony TV'
     MonHardwareName="${CfgArr[$((i++))]}"    # "intel_backlight" / "xrandr"
@@ -129,21 +185,21 @@ SetMonitorWorkSpace () {
     i=$1
 
     CfgArr[$((i++))]="$MonNumber"           # "1", "2" or "3"
-    CfgArr[$((i++))]="$MonStatus"           # "Enabled" / "Disabled"
+    CfgArr[$((i++))]="$MonStatus"           # "Enabled" / "Paused" / "Disabled"
     CfgArr[$((i++))]="$MonType"             # "Hardware" / "Software"
     CfgArr[$((i++))]="$MonName"             # "Laptop Display" / '50" Sony TV'
     CfgArr[$((i++))]="$MonHardwareName"     # "intel_backlight" / "xrandr"
-    CfgArr[$((i++))]="$MonXrandrName"       # "eDP-1-1" (primary) / "HDMI-0", etc
-    CfgArr[$((i++))]="$MonDayBrightness"    # often half of real maximum brightness
+    CfgArr[$((i++))]="$MonXrandrName"       # "eDP-1-1" / "HDMI-0", etc
+    CfgArr[$((i++))]="$MonDayBrightness"    # For backlight usually half of max
     CfgArr[$((i++))]="$MonDayRed"           # yad uses 6 decimal places. Gamma
-    CfgArr[$((i++))]="$MonDayGreen"         # broken down between Red:Green:Blue
-    CfgArr[$((i++))]="$MonDayBlue"          # built into single string
-    CfgArr[$((i++))]="$MonNgtBrightness"
+    CfgArr[$((i++))]="$MonDayGreen"         # for combined into Red:Green:Blue
+    CfgArr[$((i++))]="$MonDayBlue"          # single string for xrandr
+    CfgArr[$((i++))]="$MonNgtBrightness"    # Same as Day
     CfgArr[$((i++))]="$MonNgtRed"
     CfgArr[$((i++))]="$MonNgtGreen"
     CfgArr[$((i++))]="$MonNgtBlue"
-    CfgArr[$((i++))]="$MonCurrBrightness"
-    CfgArr[$((i++))]="$MonCurrGamma"
+    CfgArr[$((i++))]="$MonCurrBrightness"   # What is current brightness now?
+    CfgArr[$((i++))]="$MonCurrGamma"        # What is curreng gamma now?
     # 4 spare fields
 
 } # SetMonitorWorkSpace
@@ -162,7 +218,7 @@ InitXrandrArray () {
 
 SearchXrandrArray () {
 
-    # Parms: $1 = xrandr monitor name to search for.
+    # No parameters but set $MonXrandrName = xrandr monitor name to search for.
 
     # NOTE: Entries in array follow predicatble order from xrandr --verbose:
 
@@ -250,7 +306,7 @@ CreateConfiguration () {
     # Deafult Daytime brightness
     backlight=$(ls /sys/class/backlight)
     # If no hardware support use software, eg `xrandr`
-    MonStatus="Enabled"                 # opposite is "Disabled"
+    MonStatus="Enabled"                 # Can be "Paused" or "Disabled"
     if [[ $backlight == "" ]]; then
         # No /sys/class/backlight/* directory so software controlled (xrandr)
         MonType="Software"
@@ -333,10 +389,10 @@ ReadConfiguration () {
     
     # If sunrise/set files missing, use default values
     if [[ -s "$SunriseFilename" ]]; then sunrise=$(cat "$SunriseFilename")
-                                    else sunrise="6:32 am" ; fi
+                                    else sunrise="7:00 am" ; fi
     
     if [[ -s "$SunsetFilename" ]];  then sunset=$(cat "$SunsetFilename")
-                                    else sunset="8:37 pm" ; fi    
+                                    else sunset="9:00 pm" ; fi    
 
     # TODO: When editing country/city if user presses <Tab> to move to next
     #       input field the characters `\t` are appended and hidden from view.
@@ -351,8 +407,10 @@ ReadConfiguration () {
     else
         fUseDbusMonitor=false
     fi
+
     # Internal array of Xrandr all setings for faster searches
-    aXrandr=( $(xrandr --verbose --current) )
+    # Parent uses fCron=true to disable xrandr requests.
+    [[ $fCron != true ]] && aXrandr=( $(xrandr --verbose --current) )
 
 } # ReadConfiguration
 
@@ -393,8 +451,9 @@ CalcNew () {
 
 CalcBrightness () {
 
-    # Parms $1=Day / Night
+    # Parms $1=Day / Night / Gam
     #       $2=Adjust factor (percentage in .999999)
+
     #       If $2 not passed then return Day or Night value without adjustment
 
     NewGamma=""
@@ -447,17 +506,25 @@ SetBrightness () {
 
     # Called from: - eyesome.sh for long day/night sleep NO $2 passed
     #              - eyesome.sh for short transition period $2 IS passed
-    #              - eyesome-cfg.sh for short day/night test NO $2 passed
+    #              - eyesome-cfg.sh for short day/night test, NO $2 passed
+    #              - eyesome-cfg.sh for color temperature preview, NO $2 passed
 
     # Parm: $1 = Day (includes increasing after sunrise when $2 passed)
     #            Ngt (Includes decreasing before sunset when $2 passed)
+    #            Gam (See below)
+
     #       $2 = % fractional adjustment (6 decimals)
-    #       If $2 not passed then use full day or full night values
+
+    #       If $2 not passed then use full day/night values for short test.
+    #       If $1=Gam use gamma values in parameter file $ParmFileName.  The
+    #       brightness remains at current setting for each monitor. Keep in
+    #       mind the parameter file may include brightness preview in the
+    #       future.
  
     # Note: Day can be less than night. ie Red Gamma @ Day = 1.0, Ngt = 1.2   
 
     aMonNdx=( $CFG_MON1_NDX $CFG_MON2_NDX $CFG_MON3_NDX )
-    InitXrandrArray
+    InitXrandrArray # Run $(xrandr --verbose --current) to build array
     aAllMon=()      # Used in eyesome-cfg.sh, NOT used in eyesome.sh
     
     for MonNdx in "${aMonNdx[@]}"; do
@@ -475,9 +542,14 @@ SetBrightness () {
 
         [[ $XrandrConnection == disconnected ]] && continue
         [[ $XrandrCRTC == "" ]] && continue
-        [[ $MonStatus == Disabled ]] && continue
+        [[ $MonStatus != Enabled ]] && continue
 
-        CalcBrightness "$1" "$2"
+        if [[ $1 == "Gam" ]] ; then
+            NewGamma="$XrandrGammaString"
+            NewBright="$MonCurrBrightness"
+        else    
+            CalcBrightness "$1" "$2"
+        fi
 
         if [[ $MonType == "Hardware" ]]; then
             backlight="/sys/class/backlight/$MonHardwareName/brightness"
