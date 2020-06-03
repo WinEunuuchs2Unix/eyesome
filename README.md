@@ -2,7 +2,7 @@
 
 Eyesome will control up to three monitors including hardware laptop display.
 Each day sunrise and sunset times are automatically retrievedfor your city.
-Configure Daytime and Nighttime brightness and gamma levels for your monitors
+Configure Daytime and Nighttime brightness and gamma levels for your monitors.
 Configure the transition duration after sunrise and before sunset to gradually
 adjust brightness and gamma levels so changes are not noticable.
 
@@ -25,14 +25,16 @@ and operates as a control center for:
 - overriding your country/city name if eyesome didn't detect automatically
 - overriding your hardware `/sys/class/*/brightness` directory if needed
 - overriding your `xrandr` software names for external monitors if needed
-- defining daytime and nightime brightness
-- testing daytime and nighttime brightness
+- defining daytime and nightime brightness/gamma (color temperature)
+- testing daytime and nighttime brightness/gamma (color temperature)
 - setting transition period after sunrise to full monitor brighness
 - setting transition period before sunset for reducing monitor brightness
 - along with brightess, gamma can also be set (night light, redshift, etc.)
 - setting how quickly brightness/gamma changes are made during transitions
 - viewing the next interval brightess/gamma will be set
 - viewing the last interval's setting of brightness/gamma per monitor
+- overriding eyesome daemon to manually set brightness/gamma for a period
+- input gamma with red, green, blue values or use a color temperature slider
 
 For screen shots please see: https://askubuntu.com/a/887249/307523
 
@@ -62,7 +64,7 @@ sunrise and sunset times from https://www.timeanddate.com.
 
 1. Download the zip file and extract it using Archive Manager or another tool.
 
-2. Open a terminal and change to the down load directory. eg 
+2. Open a terminal and change to the download directory. eg 
 `cd ~/eyesome-MASTER`
 
 3. Mark the file `install.sh` as executable with the command:
@@ -89,19 +91,19 @@ see them again after the first time configuration.
     
 ### Note:
 
-You can also use `isntall.sh -h` or `install.sh --help` for help instructions.
+You can also use `./isntall.sh -h` or `./install.sh --help` for help instructions.
 
-You can use `sudo install.sh v` to verify MD5 hash checksums agree which means
+You can use `sudo ./install.sh v` to verify MD5 hash checksums agree which means
 your download is intact and secure.
 
-You can use `sudo install.sh rm` to remove the eyesome programs. You can
+You can use `sudo ./install.sh rm` to remove the eyesome programs. You can
 install them again later and your configuration files will still be intact.
 
 ## Messages
 
 To see eyesome daemon messages the eaiest way is with the terminal command:
 
-    journalctl -b| grep eyesome
+    journalctl -b | grep eyesome
 
 You will see this from when your computer boots:
 
