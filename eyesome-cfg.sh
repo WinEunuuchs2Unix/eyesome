@@ -5,17 +5,25 @@
 # DESC: Configuration for eyessome.sh's min/max values, sun rise/set time
 #       and transition minutes.
 # CALL: Called from terminal with `sudo` permissions.
-# DATE: Feb 17, 2017. Modified: May 18, 2020.
+# DATE: Feb 17, 2017. Modified: June 3, 2020.
 
 # UPDT: Oct 5 2018: Allow lower setting for monitor test from "5" to "1" second
 #       Add new field "Watch external monitor plugging / power switch?"
 
 #       Dec 26 2018: Change screen to reflect test time of `1 to 20 seconds`.
 
-#       May 18 2020: Add override option to pause eyesome daemon. This allows
-#       user to manually set brightness / color temperature. Make yad window
-#       geometry default to --center instead of top left. Main Menu now
+#       May 18 2020: Add override window to pause eyesome daemon.  This allows
+#       user to manually set brightness / color temperature.  Set yad window
+#       geometry default to '--center' instead of top left.  Main Menu now
 #       allows 'X' to close window or Escpae Key to exit.
+
+#       Jun 2 2020: Expand Override window with Get, Preview and Apply
+#       buttons. Add monitor fields and Help button to Override window.
+#       Make $KEY randomized rather than hard coded for restart after crash.
+
+#       June 3 2020: Yetserday's version never published to github. Remove
+#       notebook --active-tab which doesn't work anyway and iconic reports to
+#       break things in Ubuntu 19.04.
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
@@ -26,7 +34,12 @@ fi
 
 # Must have the yad package.
 command -v yad >/dev/null 2>&1 || { echo >&2 \
-        "yad package required but it is not installed.  Aborting."; \
+        "'yad' package required but it is not installed.  Aborting."; \
+        exit 2; }
+
+# Must have the bc package.
+command -v bc >/dev/null 2>&1 || { echo >&2 \
+        "'bc' package required but it is not installed.  Aborting."; \
         exit 2; }
 
 # $TERM variable may be missing when called via desktop shortcut
@@ -34,21 +47,22 @@ CurrentTERM=$(env | grep TERM)
 if [[ $CurrentTERM == "" ]] ; then
     notify-send --urgency=critical \
     "$0 cannot be run from GUI without TERM environment variable."
-    exit 1
+    exit 3
 fi
 
 # Only one instance of eyesome-cfg.sh can be running
 if pidof -o %PPID -x "$EyesomeCfgProgram">/dev/null; then
     notify-send --urgency=critical \
-    echo "Eyesome configuration is already running"
+    "Eyesome configuration is already running."
     exit 4
 fi
 
 # Read configuration and create if it doesn't exist.
 ReadConfiguration
 
-KEY="23255"         # Key for tying Notebook pages (tabs) together
-                    # multi-timer is KEY="12345", don't resuse same key.
+# Key for tying Notebook tabs together. Cannot be same key twice.
+KEY=$(echo $[($RANDOM % ($[10000 - 32000] + 1)) + 10000] )
+
 GEOMETRY="--center" # Center windows on screen
 
 # Temporary files for Notebook output
@@ -131,9 +145,17 @@ EditConfiguration () {
     #   Set internval between 5 and 300 seconds (5 minutes).
     #   15 to 60 seconds should provide the best results.
 
-    # General notebook page
-    yad --plug=$KEY --tabnum=1 --form \
-        --field="
+    local ButnRefresh ButnSave
+
+    ButnRefresh=10
+    ButnSave=20
+
+    # Loop while BTN calls bash -c and kills notebook dialog
+    while true ; do # Dummy loop, always exists after first time.
+
+        # General notebook page
+        yad --plug=$KEY --tabnum=1 --form \
+            --field="
 The web page with sunrise/sunset hours must begin with
 https://www.timeanddate.com/sun/ and followed by your
 country/city name.
@@ -143,8 +165,8 @@ name or even just a number.  Normally the correct web
 address is found automatically.  If not, navigate to
 www.timeanddate.com and search for your city name. 
 Then copy the browser's web address and paste it below:\n:TXT" \
-        "${CfgArr[CFG_SUNCITY_NDX]}" \
-        --field="
+            "${CfgArr[CFG_SUNCITY_NDX]}" \
+            --field="
 The brightness update interval is entered in seconds.
 A longer update interval saves computer resources.  An 
 interval too long will give noticable brightness and
@@ -168,30 +190,39 @@ transition if testing after sunrise and before sunset.:
     # Monitor 1 notebook page
     BuildMonitorPage "$CFG_MON1_NDX"
     yad --plug=$KEY --tabnum=2 --form \
-        "${aMonPage[@]}" > "$res2" &
+        "${aMonPage[@]}" \
+        > "$res2" &
 
     # Monitor 2 notebook page
     BuildMonitorPage "$CFG_MON2_NDX"
     yad --plug=$KEY --tabnum=3 --form \
-        "${aMonPage[@]}" > "$res3" &
+        "${aMonPage[@]}" \
+        > "$res3" &
 
     # Monitor 3 notebook page
     BuildMonitorPage "$CFG_MON3_NDX"
     yad --plug=$KEY --tabnum=4 --form \
-        "${aMonPage[@]}" > "$res4" &
+        "${aMonPage[@]}" \
+        > "$res4" &
 
-    # run main dialog
-    #  --image=gnome-calculator
-    if yad --notebook --key=$KEY --tab="General" --tab="Monitor 1" \
-        --tab="Monitor 2" --tab="Monitor 3" --active-tab="Monitor 2" \
-        --image=sleep --image-on-top "$GEOMETRY" \
-        --title="eyesome setup" --width=400 \
-        --text="<big><b>eyesome</b></big> - edit configuration" 2>/dev/null
-    then
-        :
-    else
-        return
-    fi
+        # run main dialog
+        #  --image=gnome-calculator
+        yad --notebook --key=$KEY --tab="General" --tab="Monitor 1" \
+            --tab="Monitor 2" --tab="Monitor 3" \
+            --image=sleep --image-on-top "$GEOMETRY" \
+            --title="eyesome setup" --width=400 \
+            --text="<big><b>eyesome</b></big> - edit configuration" \
+            --button="_Save:$ButnSave" \
+            --button="_Cancel:$ButnQuit" \
+            2>/dev/null
+
+        Retn="$?"
+
+        [[ $Retn == "$ButnSave" ]] && break        # Save changes
+
+        return      # Quit button, Escape Key, Alt-F4, X close window
+
+    done
 
     # Save configuration
     truncate -s -1 "$res1"  # Remove new line at EOF
@@ -229,15 +260,15 @@ MainMenu () {
 
     # Getting dozens of Green Beakers (yad icons) in taskbar when left running
     # and auto updating every 15 seconds. Use --skip-taskbar
-    Dummy=$(yad  --form --skip-taskbar "$GEOMETRY" \
+    Result=$(yad  --form --skip-taskbar "$GEOMETRY" \
         --image=preferences-desktop-screensaver \
         --window-icon=preferences-desktop-screensaver \
         --margins=10 \
         --title="eyesome setup" \
         --text="<big><b>eyesome</b></big> - main menu" \
         --timeout="$SecondsToUpdate" --timeout-indicator=top \
-        --field="Eyesome daemon sleep time was last checked at::RO" \
-        --field="Number of seconds until eyesome daemon wakes::RO" \
+        --field="Eyesome daemon sleep time checked at::RO" \
+        --field="Seconds until eyesome daemon wakes::RO" \
         --field="The next time eyesome daemon wakes::RO" \
         --field="
 
@@ -280,7 +311,8 @@ Click the <b><i>Quit</i></b> button to close this program.
 
 TestBrightness () {
 
-    # $1 = Day or Ngt
+    # $1 = Day or Ngt for short test
+    # $1 = Gam for gamma preview applied to all monitors
 
     SetBrightness "$1"      # SetBrightnes function also used by eyesome.sh
 
@@ -297,8 +329,15 @@ TestBrightness () {
         [[ $i -gt 100 ]] && break
         sleep "$SleepSec"
 
+    local TitleString
+    if [[ $1 == "Gam" ]] ; then
+        TitleString="eyesome Color Temperature Preview"
+    else
+        TitleString="eyesome Monitor Brightness Test"
+    fi
+
     done | yad --progress       --auto-close \
-        --title="eyesome Monitor Brightness Test" \
+        --title="$TitleString" \
         --enable-log "$TestSeconds second time progress" \
         --width=400             --height=550 \
         --log-expanded          --log-height=400 \
@@ -310,130 +349,235 @@ TestBrightness () {
 
 } # TestBrightness
 
-# May 18, 2020 - Python code from mmm partially converted to bash
-# GammaRampArr converted to bash from mmm python program
-GammaRampArr=()
-             #   RED          GREEN        BLUE       TEMP
-GammaRampArr+=( 1.00000000  0.05181963  0.00000000   500 ) # NOT ALLOWWED
-GammaRampArr+=( 1.00000000  0.18172716  0.00000000  1000 )
-GammaRampArr+=( 1.00000000  0.42322816  0.00000000  1500 )
-GammaRampArr+=( 1.00000000  0.54360078  0.08679949  2000 )
-GammaRampArr+=( 1.00000000  0.64373109  0.28819679  2500 )
-GammaRampArr+=( 1.00000000  0.71976951  0.42860152  3000 )
-GammaRampArr+=( 1.00000000  0.77987699  0.54642268  3500 )
-GammaRampArr+=( 1.00000000  0.82854786  0.64816570  4000 )
-GammaRampArr+=( 1.00000000  0.86860704  0.73688797  4500 )
-GammaRampArr+=( 1.00000000  0.90198230  0.81465502  5000 )
-GammaRampArr+=( 1.00000000  0.93853986  0.88130458  5500 )
-GammaRampArr+=( 1.00000000  0.97107439  0.94305985  6000 )
-GammaRampArr+=( 1.00000000  1.00000000  1.00000000  6500 )
-GammaRampArr+=( 0.95160805  0.96983355  1.00000000  7000 )
-GammaRampArr+=( 0.91194747  0.94470005  1.00000000  7500 )
-GammaRampArr+=( 0.87906581  0.92357340  1.00000000  8000 )
-GammaRampArr+=( 0.85139976  0.90559011  1.00000000  8500 )
-GammaRampArr+=( 0.82782969  0.89011714  1.00000000  9000 )
-GammaRampArr+=( 0.80753191  0.87667891  1.00000000  9500 )
-GammaRampArr+=( 0.78988728  0.86491137  1.00000000  10000 )
-GammaRampArr+=( 0.77442176  0.85453121  1.00000000  10500 ) # NOT ALLOWWED
-
 : <<'END'
 /* ----------------------------------------------------------------------------
-    May 18, 2020 - Python code from mmm to convert to bash in the future
-
-def adjust_channel(last, current, multiplier):
-    ''' current may be less than last so we are decreasing
-    '''
-
-    if current > last :
-        # normal increasing values
-        added = (current - last) * multiplier
-        return (last + added)
-    else :
-        # decreasing values
-        subtracted = (last - current) * multiplier
-        return (last - subtracted)
-
-def temp_to_gamma(srch_temp):
-    ''' Convert Temp to Gamma (Xrandr Inverted or REAL Gamma returned)
-    '''
-    # Override breaking values
-    srch_temp = int(srch_temp)
-    if srch_temp < 1000  : srch_temp = 1000
-    if srch_temp > 10000 : srch_temp = 10000
-
-    for i, ramp in enumerate (GammaRampArr):
-        red, green, blue, temp = ramp
-        if srch_temp <= temp : break
-        last_red, last_green, last_blue, last_temp = ramp
-
-    full_gap = float(temp - last_temp)
-    multiplier = (srch_temp - last_temp) / full_gap
-
-    r = adjust_channel(last_red, red, multiplier)
-    g = adjust_channel(last_green, green, multiplier)
-    b = adjust_channel(last_blue, blue, multiplier)
-    return (str(round(r,2)) + ":" + str(round(g,2)) + ":" + str(round(b,2)))
-
-# Some tests
-#print (temp_to_gamma(999))
-#print (temp_to_gamma(99999))
-#print (temp_to_gamma(3417))
-
-def gamma_to_temp(srch_gamma):
-    ''' Convert Gamma to Temp (normal and NOT Xrandr Inverted Gamma passed)
-    
-    If red == 1.0, find closest green above and below.
-    If red <> 1.0, find red above and below.
-    
-    TESTING: Use invalid like: `xrandr --output DP-1-1 --gamma 0.0:9.0:5.0`
-                               `xrandr --output DP-1-1 --gamma 2.8:0.0:0.3`
-    '''
-    channels   = srch_gamma.split(":")
-    srch_red   = float(channels[0])
-    srch_green = float(channels[1])
-    srch_blue  = float(channels[2])
-    if srch_red   > 1.0 : srch_red   = 1.0
-    if srch_green > 1.0 : srch_green = 1.0
-    if srch_blue  > 1.0 : srch_blue  = 1.0
-
-    for i, ramp in enumerate (GammaRampArr):
-        red, green, blue, temp = ramp
-
-        if srch_red == 1.0 and blue == 0.0 :
-            # Temperature is 1000K to 1500K
-            if srch_green <= green :
-                #  red static at 1 and blue static at 0 whilst green increasing
-                if i == 0 : continue    # Cannot be first index
-                full_gap = green - last_green
-                multiplier = float(srch_green - last_green) / full_gap
-                break
-
-        elif srch_red == 1.0 and blue != 0.0 :
-            # Temperature is 1501K to 6499K
-            if srch_blue <= blue :
-                #  red static at 1 whilst blue and blue are increasing
-                full_gap = blue - last_blue
-                multiplier = float(srch_blue - last_blue) / full_gap
-                break
-
-        else :
-            # Temperature is over 6499K and cannot be last index 10500 K
-            if srch_red >= red or i == len(GammaRampArr) - 2 :
-                # blue static at 1.0 whilst red and green are decreasing
-                full_gap = last_red - red
-                multiplier = float(last_red - srch_red) / full_gap
-                break
-
-        last_red, last_green, last_blue, last_temp = ramp
-
-    return_temp = float(last_temp) + (500.0 * multiplier)
-    return int(return_temp)
+    May 18, 2020 - mmm Python code for Color Temperature converted to bash
 ---------------------------------------------------------------------------- */
 END
 
-Override () {
+math () {
 
-    # Code lifted from movee.sh update on May 18, 2020.
+    # Written for: https://askubuntu.com/a/1241983/307523 and eyesomed-cfg.sh
+
+    [[ $2 != "=" ]] && { echo "Second parm must be '='"; return 1; }
+
+    # Declare mathres as reference to argument 1 provided (Bash 4.3 or greater)
+    declare -n mathres=$1
+
+    math_op="$4"    # '*' as parameter changes operator to 'aptfielout' and
+                    # operand2 to 'aptfilein' so force 'x' instead.
+
+    case "$math_op" in
+        x | \- | \/ | \+ | % ) # echo "Good"
+            ;;
+        *)
+            echo "Invalid: $1 $2 $3 $4 $5 (For mutiplication use 'x' not '*')"
+            echo 'Usage: math c = $a operator $b'
+            echo 'Where operator is: "+", "-", "/", or "x" (without quotes)'
+            ;;
+    esac
+   
+    [[ $math_op == "x" ]] && math_op="*"
+
+    mathres=$(awk "BEGIN { print ($3 $math_op $5) }")
+
+} # math
+
+adjust_channel () {
+
+    local last_temp current multiplier
+    local added subtracted
+
+    last_val="$2"
+    current="$3"
+    multiplier="$4"
+
+    # Declare mathres as reference to argument 1 provided (Bash 4.3 or greater)
+    declare -n retn="$1"
+
+    if [[ $current > "$last_val" ]]; then
+        # normal increasing values
+        math added = "$current" - "$last_val"
+        math added = "$added" x "$multiplier"
+        math retn = "$last_val" + "$added"
+    else
+        # decreasing values
+        math subtracted = "$last_val" - "$current"
+        math subtracted = "$subtracted" x "$multiplier"
+        math retn = "$last_val" - "$subtracted"
+    fi
+
+} # adjust_channel
+
+TempToGamma () {
+
+    # May 18, 2020 - Python code from mmm's temp_to_gamma (srch_temp) function
+    # Convert Temp to Gamma (Xrandr Inverted or REAL Gamma returned)
+
+    local srch_temp i red green blue temp
+    local last_red last_green last_blue last_temp
+    local full_gap multiplier r g b
+    
+    # global variables set are Red, Green, Blue
+
+    # Override breaking values
+    srch_temp="$1"
+    [[ $srch_temp -lt 1000 ]] && srch_temp=1000
+    [[ $srch_temp -gt 10000 ]] && srch_temp=10000
+
+    # Get array entries before and after search temperature
+    for ((i=0; i<"${#GammaRampArr[@]}"; i=i+GRA_ENT_LEN)); do
+        red="${GammaRampArr[i+GRA_RED_OFF]}"
+        green="${GammaRampArr[i+GRA_GRN_OFF]}"
+        blue="${GammaRampArr[i+GRA_BLU_OFF]}"
+        temp="${GammaRampArr[i+GRA_TMP_OFF]}"
+        [[ $srch_temp -lt "$temp" ]] && break
+        last_red="$red"
+        last_green="$green"
+        last_blue="$blue"
+        last_temp="$temp"
+    done
+
+    # Calculate percentange (multiplier) search temperature between entries
+    math full_gap = "$temp" - "$last_temp"
+    math multiplier = "$srch_temp" - "$last_temp"
+    math multiplier = "$multiplier" / "$full_gap"
+    adjust_channel r "$last_red" "$red" "$multiplier"
+    adjust_channel g "$last_green" "$green" "$multiplier"
+    adjust_channel b "$last_blue" "$blue" "$multiplier"
+
+    # Deviation from mmm old line returned concatenated string for xrandr:
+    # return (str(round(r,2)) + ":" + str(round(g,2)) + ":" + str(round(b,2)))
+    # Here though we simply set global variables Red, Greeen, Blue 
+
+    Red="$r"
+    Green="$g"
+    Blue="$b"
+    xRed=$(printf '%.*f\n' 2 "$Red")
+    xGreen=$(printf '%.*f\n' 2 "$Green")
+    xBlue=$(printf '%.*f\n' 2 "$Blue")
+    XrandrGammaString="$xRed:$xGreen:$xBlue"
+
+} # TempToGamma
+
+GammaToTemp() {
+
+    # Based on gamma_to_temp(srch_gamma) from mmm Python Program
+    # Convert Gamma to Temp (normal and NOT Xrandr Inverted Gamma passed)
+    
+    # TESTING: Use invalid like: `xrandr --output DP-1-1 --gamma 0.0:9.0:5.0`
+    #                            `xrandr --output DP-1-1 --gamma 2.8:0.0:0.3`
+
+    # Returns $Temperature already defined globally
+    # Requires $Red $Green and $Blue passed as $1 $2 $3
+
+    local srch_red srch_green srch_blue i red green blue temp
+    local last_red last_green last_blue last_temp
+    local cutoff full_gap multiplier r g b
+
+    srch_red="$1"
+    srch_green="$2"
+    srch_blue="$3"    
+
+    # Override breaking values
+    [[ $srch_red > "1.0" ]] && srch_red=1.0
+    [[ $srch_green > "1.0" ]] && srch_green=1.0
+    [[ $srch_blue > "1.0" ]] && srch_blue=1.0
+
+    # Get array entries before and after search colors
+    cutoff=$(( ${#GammaRampArr[@]} - ($GRA_ENT_LEN * 2) ))
+    for ((i=0; i<"${#GammaRampArr[@]}"; i=i+GRA_ENT_LEN)); do
+
+        red="${GammaRampArr[i+GRA_RED_OFF]}"
+        green="${GammaRampArr[i+GRA_GRN_OFF]}"
+        blue="${GammaRampArr[i+GRA_BLU_OFF]}"
+        temp="${GammaRampArr[i+GRA_TMP_OFF]}"
+
+        if [[ $srch_red == 1.0* ]] && [[ $blue == 0.0* ]] ; then
+            # Temperature is 1000K to 2000K
+            # Test srch_green <= green
+            if [[ "$green" > "$srch_green" ]] && [[ $i -ne 0 ]] ; then
+                #  red static at 1 and blue static at 0 whilst green increasing
+                math full_gap = "$green" - "$last_green"
+                math multiplier = "$srch_green" - "$last_green"
+                math multiplier = "$multiplier" / "$full_gap"
+                break
+            fi
+
+        elif [[ $srch_red == 1.0* ]] && [[ $blue != 0.0* ]] ; then
+            # Temperature is 2001K to 6499K
+            # Test srch_blue <= blue
+            if [[ "$blue" > "$srch_blue" ]] ; then
+                #  red static at 1 whilst green and blue are increasing
+                math full_gap = "$blue" - "$last_blue"
+                math multiplier = "$srch_blue" - "$last_blue"
+                math multiplier = "$multiplier" / "$full_gap"
+                break
+            fi
+
+        else
+            # Temperature is over 6499K and cannot be last index 10500 K
+            # Test srch_red >= red
+            if [[ "$red" < "$srch_red" ]] ; then
+                # blue static at 1.0 whilst red and green are decreasing
+                math full_gap = "$last_red" - "$red"
+                math multiplier = "$last_red" - "$srch_red"
+                math multiplier = "$multiplier" / "$full_gap"
+                break
+            fi
+        fi
+
+        [[ $i -ge "$cutoff" ]] && { Temperature="$temp" ; return ; }
+
+        last_red="$red"
+        last_green="$green"
+        last_blue="$blue"
+        last_temp="$temp"
+    done
+
+    Temperature=500.0
+    math Temperature = "$Temperature" x "$multiplier"
+    math Temperature = "$Temperature" + "$last_temp"
+    Temperature=$(printf "%.0f" "$Temperature")
+
+} # GammaToTemp
+
+ColorTemperature () {
+
+    ButnConvert=10
+    [[ $Temperature == "$EmptyString" ]] && Temperature=6500
+
+    Result=$(yad  --scale --mouse \
+        --image=preferences-desktop-screensaver \
+        --window-icon=preferences-desktop-screensaver \
+        --value="$Temperature" --step=100 \
+        --min-value=1000  --max-value=10000 \
+        --mark=Night:3500 --mark=Day:6500 \
+        --margins=10 \
+        --title="eyesome color convertor" \
+        --text="
+<big><b>eyesome</b></big> - Convert color temperature to gamma  
+
+Recommended nighttime color is 3500 K (Kelvins).
+Recommended daytime color is 6500 K." \
+        --button="_Convert:$ButnConvert" \
+        --button="_Quit:$ButnQuit" \
+        2>/dev/null)
+
+    Retn="$?"
+
+    if [[ $Retn == "$ButnConvert" ]] ; then
+        Temperature="$Result"
+        TempToGamma "$Temperature"
+        return 0
+    fi
+    return 1
+
+} # ColorTemperature
+
+PauseMonitors () {
+
+    # Code lifted from movie.sh update on May 18, 2020.
     # Get current monitor status to restore when exiting.
     sMon1Status=$(grep -oP '(?<=\|1\|).*?(?=\|)' "$ConfigFilename")
     sMon2Status=$(grep -oP '(?<=\|2\|).*?(?=\|)' "$ConfigFilename")
@@ -446,30 +590,274 @@ Override () {
     [[ $sMon3Status == Enabled ]] && \
         sed -i "s/|3|$sMon3Status|/|3|Paused|/g" "$ConfigFilename"
 
-    while true ; do
+} # PauseMonitors
 
-        Dummy=$(yad  --form "$GEOMETRY" \
-            --image=preferences-desktop-screensaver \
-            --window-icon=preferences-desktop-screensaver \
-            --margins=10 \
-            --title="eyesome override" \
-            --text="
-<big><b>eyesome</b></big> - Override (Pause eyesome daemon)" \
-            --field="
-You can now manually reset brightness or color for monitor(s).
-Eyesome daemon has been paused and will not change settings
-until this window is closed.:LBL" \
-            --button="_Cancel:$ButnQuit" \
-            2>/dev/null)
-
-        Retn="$?"
-        break
-    done
+UnPauseMonitors () {
 
     # Restore each paused monitor status to enabled setting.
     sed -i "s/|1|Paused|/|1|Enabled|/g" "$ConfigFilename"
     sed -i "s/|2|Paused|/|2|Enabled|/g" "$ConfigFilename"
     sed -i "s/|3|Paused|/|3|Enabled|/g" "$ConfigFilename"
+
+} # UnPauseMonitors
+
+ErrMsg () {
+    # Parmater 1 = message to display
+
+    yad --image "dialog-error" --title "eyesome - Logical Error" \
+        --mouse --button=gtk-ok:0 --text "$1" 2>/dev/null
+
+ 
+} # ErrMsg
+
+InfoMsg () {
+    # Parmater 1 = message to display
+
+    yad --image "dialog-information" --title "eyesome - Information" \
+        --mouse --button=gtk-ok:0 --text "$1" 2>/dev/null
+ 
+} # InfoMsg
+
+ConfirmUpdate () {
+
+    local ButnUpdate
+    ButnUpdate=10
+
+    yad --image "gtk-dialog-question" --title "eyesome - Confirm Update" \
+        --text="<big><b>eyesome</b></big> - Apply changes to configuration
+
+
+Are you sure you want to permenantly apply Monitor $OverrideMonitor - $OverrideDayNight
+gamma settings ('$XrandrGammaString') to eyesome's configuration file?   " \
+        --mouse \
+        --button="_Update settings:$ButnUpdate" \
+        --button="_Cancel update:$ButnQuit" \
+        2>/dev/null
+
+    [[ "$?" != "$ButnUpdate" ]] && return 1
+
+    return 0
+
+} # ConfirmUpdate
+
+OverrideHelp () {
+
+    # Parent window stays active and this function is called in sub-shell.
+    # Parent variables are not visible here unless they are exported.
+
+    yad --form --mouse \
+        --image=preferences-desktop-screensaver \
+        --window-icon=preferences-desktop-screensaver \
+        --margins=10 \
+        --title="eyesome Override Help" \
+        --text="<big><b>eyesome</b></big> - Override Help" \
+        --field="
+
+You can now manually reset brightness or tint for monitor(s). Eyesome daemon   
+has been paused and will not change monitor(s) until Override window is closed.
+
+Click the <b><i>Get</i></b> button to get the Day or Night settings for a monitor
+into memory.
+
+Click the <b><i>Color</i></b> button to pop up a window for converting color temperature 
+to gamma channels of Red, Green and Blue. The gamma channels can be used
+with xrandr to control screen color temperature (also called tint):
+
+   xrandr --output <b>Monitor_Name</b> --brigthness <b>0.85</b> --gamma <b>Red:Green:Blue</b>     
+
+Substitute <b>bold fields</b> above with desired values:
+
+   <b>Monitor_Name</b> = Xrandr monitor name, e.g. 'eDP-1'.
+
+   <b>0.85</b>                       = Set brightness to 0.85 which is 85%.
+                                     If ommitted 1.0 brightness (100%) is used.   
+
+   <b>Red:Green:Blue</b> = Xrandr gamma string e.g. '1.00:0.94:0:89'.
+
+The starting color value will be 6500 K (daytime) unless <b><i>Get</i></b> button was
+used to get a given monitor's day or night settings into memory.
+
+Click the <b><i>Preview</i></b> button to test what ALL monitors look like with the color
+temperature in memory.
+
+Click the <b><i>Apply</i></b> button to change Daytime or Nighttime setting for the  
+SINGLE monitor in memory using the current Color Temperature set with <b><i>Color</i></b>  
+button. This permanently updates eyesome's configuration file.
+
+<b>NOTE:</b> The 'xrandr --gamma string' appears as an input field but it is not. The 
+string can be copied into the clipboard and pasted into the terminal.
+
+:LBL" \
+        --field="Use Escape key, Alt+F4 or click Quit to close this window.:RO" " " \
+        --button="_Quit:" "$ButnQuit" \
+        2>/dev/null
+
+    # At least one Read Only (:RO) field is needed or window goes super large
+
+} # OverrideHelp
+
+export -f OverrideHelp      # Make available to OVerride functions Help button
+
+
+Override () {
+
+    local ButnGet ButnColor ButnPreview ButnApply aMonNdx Result Ret Arr
+    local EmptyString cbMonitor cbDayNight
+
+    ButnGet=10
+    ButnColor=20
+    ButnPreview=30
+    ButnApply=40
+
+    EmptyString="Nothing in memory."
+
+    # Define global fields
+    Temperature="$EmptyString"
+    Red="$EmptyString"
+    Green="$EmptyString"
+    Blue="$EmptyString"
+    XrandrGammaString="1.00:1.00:1.00"
+    # MonNdx must be global for ConfirmUpdate function
+    MonNdx="$EmptyString"
+
+    # Monitor number (1-3) to monitor index in Cfg Arr
+    aMonNdx=( $CFG_MON1_NDX $CFG_MON2_NDX $CFG_MON3_NDX )
+    MonName="$EmptyString"            # "Laptop Display" / '50" Sony TV'
+    MonHardwareName="$EmptyString"    # "intel_backlight" / "xrandr"
+    MonXrandrName="$EmptyString"      # "eDP-1-1" (primary) / "HDMI-0", etc
+
+    InitXrandrArray # Run $(xrandr --verbose --current) to build array
+
+    # If eyesome daemon wakes it won't change our monitors whilst paused
+    PauseMonitors
+
+    # Global Monitor number and time kept in memory between Override buttons
+    OverrideMonitor="1"
+    OverrideDayNight="Night"
+
+    while true ; do
+
+        # Build monitor number and Day/Night Choice Boxes for yad
+        cbMonitor="1!2!3"
+        # Set default highlighted monitor (denoted by ^)
+        cbMonitor="${cbMonitor/$OverrideMonitor/\^$OverrideMonitor}"
+
+        cbDayNight="Day!Night"
+        # Set default highlighted time (denoted by ^)
+        cbDayNight="${cbDayNight/$OverrideDayNight/\^$OverrideDayNight}"
+
+        Result=$(yad --form "$GEOMETRY" \
+            --image=preferences-desktop-screensaver \
+            --window-icon=preferences-desktop-screensaver \
+            --margins=10 \
+            --title="eyesome Override" \
+            --text="
+<big><b>eyesome</b></big> - Override (Pause eyesome daemon)   " \
+            --field="Monitor Number::CB" \
+                    "$cbMonitor" \
+            --field="Day or Night::CB" \
+                    "$cbDayNight" \
+            --field="Monitor Name::RO" "$MonName" \
+            --field="Internal Name::RO" "$MonHardwareName" \
+            --field="Xrandr Plug Name::RO" "$MonXrandrName" \
+            --field="Color temperature::RO" "$Temperature" \
+            --field="Red gamma channel::RO" "$Red" \
+            --field="Green gamma channel::RO" "$Green" \
+            --field="Blue gamma channel::RO" "$Blue" \
+            --field="_Help using this window:FBTN" \
+                    'bash -c "OverrideHelp"'  \
+            --field="xrandr --gamma string: " "$XrandrGammaString" \
+            --button="_Get:$ButnGet" \
+            --button="_Color:$ButnColor" \
+            --button="_Preview:$ButnPreview" \
+            --button="_Apply:$ButnApply" \
+            --button="_Quit:$ButnQuit" \
+            2>/dev/null)
+
+        Retn="$?"       # Button return value, 254 = Escape or Alt+F4
+
+        # Convert Yad result string into an array
+        IFS='|' read -r -a Arr <<< "$Result"    # Result string has | delimiters
+        OverrideMonitor="${Arr[0]}"             # Extract Monitor Number
+        OverrideDayNight="${Arr[1]}"            # Extract Day or Night
+        MonNdx="${aMonNdx[$(($OverrideMonitor - 1))]}"
+
+        [[ $Retn == "$ButnQuit" || $Retn == "$ButnEscape" ]] && break
+
+        if [[ $Retn == "$ButnColor" ]] ; then
+            ColorTemperature || continue
+            Red=$(printf '%.*f\n' 2 "$Red")
+            Green=$(printf '%.*f\n' 2 "$Green")
+            Blue=$(printf '%.*f\n' 2 "$Blue")
+            XrandrGammaString="$Red:$Green:$Blue"
+
+        elif [[ $Retn == "$ButnPreview" ]] ; then
+            [[ $Red == "$EmptyString" ]] && { \
+                ErrMsg "\n\n\nGamma must be in memory before 'Preview'.   " ;
+                continue ; }
+
+            UnPauseMonitors
+            TestBrightness Gam
+            PauseMonitors
+
+        elif [[ $Retn == "$ButnGet" ]] ; then
+            # Set OverrideMonitor and OverrideDayNight fields
+            # Read values from CfgArr into work fields for:
+            #   - Brightness (not used yet), Red, Green & Blue.
+            # Then calculate approximate Temperature from RGB
+            GetMonitorWorkSpace "$MonNdx"
+            if [[ $OverrideDayNight == Day ]] ; then
+                Red=$(printf '%.*f\n' 2 "$MonDayRed")
+                Green=$(printf '%.*f\n' 2 "$MonDayGreen")
+                Blue=$(printf '%.*f\n' 2 "$MonDayBlue")
+            else
+                Red=$(printf '%.*f\n' 2 "$MonNgtRed")
+                Green=$(printf '%.*f\n' 2 "$MonNgtGreen")
+                Blue=$(printf '%.*f\n' 2 "$MonNgtBlue")
+            fi
+            XrandrGammaString="$Red:$Green:$Blue"
+            GammaToTemp "$Red" "$Green" "$Blue"
+
+        elif [[ $Retn == "$ButnApply" ]] ; then
+            # Apply current gamma settings to selected monitor and time of day.
+            [[ $MonName == "$EmptyString" ]] && { \
+                ErrMsg "\n\n\nYou must 'Get' a monitor into memory first.   " ;
+                continue ; }
+
+            ConfirmUpdate || continue
+
+            # Update configuration file
+            UnPauseMonitors
+            ReadConfiguration
+            GetMonitorWorkSpace "$MonNdx"
+
+            if [[ $OverrideDayNight == Day ]] ; then
+                # Yad uses 6 decimal places internally
+                MonDayRed=$(printf '%.*f\n' 6 "$Red")
+                MonDayGreen=$(printf '%.*f\n' 6 "$Green")
+                MonDayBlue=$(printf '%.*f\n' 6 "$Blue")
+            else
+                MonNgtRed=$(printf '%.*f\n' 6 "$Red")
+                MonNgtGreen=$(printf '%.*f\n' 6 "$Green")
+                MonNgtBlue=$(printf '%.*f\n' 6 "$Blue")
+            fi
+
+            SetMonitorWorkSpace "$MonNdx"
+            WriteConfiguration
+            PauseMonitors
+            local Msg
+            Msg="\n\n\nGamma settings have been updated for monitor:"
+            Msg="$Msg $OverrideMonitor - $OverrideDayNight   "
+            InfoMsg "$Msg"
+
+        else
+            ErrMsg "eyesome - Override function - unknown button: $Retn"
+        fi
+
+    done
+
+    # Allow eyesome daemon to control monitors when he wakes
+    UnPauseMonitors
 
 } # Override
 
@@ -492,7 +880,7 @@ CheckSunHours () {
             return 0 # Sunrise / sunset file times are up-to-date.
         fi
 
-        Dummy=$(yad  --form "$GEOMETRY" \
+        Result=$(yad --form "$GEOMETRY" \
             --image=preferences-desktop-screensaver \
             --window-icon=preferences-desktop-screensaver \
             --margins=10 \
@@ -558,7 +946,7 @@ CheckEyesomeDaemon () {
         [[ $pID != "" ]] && return 0    # .../eyesome.sh daemon is running
 
         # If you run program to strip trailing spaces add 3 after "will run"    
-        Dummy=$(yad  --form "$GEOMETRY" \
+        Result=$(yad  --form "$GEOMETRY" \
             --image=preferences-desktop-screensaver \
             --window-icon=preferences-desktop-screensaver \
             --margins=10 \
@@ -609,6 +997,7 @@ Main () {
     ButnNight=40
     ButnOverride=50
     ButnQuit=60
+    ButnEscape=252  # Also used by 'X' Window Close and Alt-F4
 
     while true ; do
 
@@ -619,28 +1008,27 @@ Main () {
 
         MainMenu
         
-        if [[ $Retn == "$ButnEdit" ]] ; then
+        if [[ $Retn == "$ButnEscape" || $Retn == "$ButnQuit" ]] ; then
+            # At this point clicked Quit button or Escape or Window X'd.
+            break
+        elif [[ $Retn == "$ButnEdit" ]] ; then
             EditConfiguration
             CheckSunHours
             CheckEyesomeDaemon
             # monitor settings may have changed, so wake up eyesome
             $WakeEyesome post eyesome-cfg.sh nosleep
-            continue
         elif [[ $Retn == "$ButnDay" ]] ; then
             TestBrightness Day
-            continue
         elif [[ $Retn == "$ButnNight" ]] ; then
             TestBrightness Ngt
             # TODO: Last brightness/gamma isn't reset after nighttime test
-            continue
         elif [[ $Retn == "$ButnOverride" ]] ; then
             Override
-            continue
         elif [[ $Retn == "$ButnRemaining" || $Retn == "70" ]] ; then
             continue    # 70 = menu times out when eyesome daemon wakes
         else
-            break
-        fi  # At this point clicked Quit button or Escape or Window X'd.
+            continue    # Not reachable
+        fi
 
     done
 
