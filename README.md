@@ -89,16 +89,14 @@ are also prompted to start the eyesome dameon because you haven't rebooted
 your computer yet. Go ahead and accept both these prompts. You should never
 see them again after the first time configuration.
 
-7. A new enhancement (June 3, 2020) are default sunrise and sunset files called:
-`/usr/local/bin/.eyesome-sunrise` and `/usr/local/bin/.eyesome-sunset`.
-After installation you will need to delee these for auto-configuration in
-Step 6. to take place. Otherwise real suntimes won't be updated until the next
-day. As was in original version, you can manually set the time for eyesome by 
-updating these plain text files. Do this if you don't want the internet knowing
-which city you are really in when you are using a VPN to hide your ISP's city.
-The file format is simple and the defaults are "7:00 am" for sunrise and
-"9:00 pm" for sunset. Use `cat /usr/local/bin/.eyesome-sun*` to see current
-sunrise and sunset times. A future version will make this more user-friendly.
+7. Default sunrise and sunset files called `/usr/local/bin/.eyesome-sunrise` 
+and `/usr/local/bin/.eyesome-sunset` are in the download but not installed.
+After installation you will need to copy these files if you want to manually
+set the time for eyesome by updating these plain text files. Do this if you 
+don't want the internet knowing which city you are really in when you are 
+using a VPN to hide your ISP's city. The file format is plain text and the 
+defaults are "7:00 am" for sunrise and "9:00 pm" for sunset. Use the command
+`cat /usr/local/bin/.eyesome-sun*` to see current sunrise and sunset times.
     
 ### Note:
 
