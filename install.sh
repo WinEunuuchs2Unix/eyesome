@@ -3,7 +3,7 @@
 # NAME: install.sh
 # PATH: Current directory where files downloaded from github
 # DESC: Copy eyesome scripts / command files to target directories
-# DATE: September 21, 2018. Modified: June 2, 2020.
+# DATE: September 21, 2018. Modified: June 3, 2020.
 
 # PARM: $1=dev developer mode, publish files
 #         =rm  remove files
@@ -11,6 +11,10 @@
 
 # UPDT: Jun 02 2020 - Default sunrise "7:00 am" and sunset "9:00 pm" files.
 #       Add option to install 'bc'. Correct typos.
+
+#       Jun 03 2020 - Don't automatically copy default sunrise and sunset
+#       files but leave them in installation directory if user wants to
+#       manually copy them.
 
 CopyFiles () {
 
@@ -23,8 +27,9 @@ CopyFiles () {
     install -v ./eyesome-sun.sh         /usr/local/bin/
     install -v ./wake-eyesome.sh        /usr/local/bin/
     install -v ./eyesome-dbus.sh        /usr/local/bin/
-    cp      -v ./.eyesome-sunrise       /usr/local/bin/
-    cp      -v ./.eyesome-sunset        /usr/local/bin/
+    # June 3, 2020 intentionally omit /usr/local/bin/.eyesome-sunrise (& set)
+    # cp      -v ./.eyesome-sunrise       /usr/local/bin/
+    # cp      -v ./.eyesome-sunset        /usr/local/bin/
     cp      -v ./start-eyesome          /etc/cron.d/
     install -v ./daily-eyesome-sun      /etc/cron.daily/
     install -v ./systemd-wake-eyesome   /lib/systemd/system-sleep/
@@ -83,7 +88,7 @@ PublishFiles () {
     cp -v /usr/local/bin/eyesome-sun.sh .
     cp -v /usr/local/bin/wake-eyesome.sh .
     cp -v /usr/local/bin/eyesome-dbus.sh .
-    # intentionally omit /usr/local/bin/.eyesome-sunrise (& set)
+    # June 2, 2020 intentionally omit /usr/local/bin/.eyesome-sunrise (& set)
     cp -v /etc/cron.d/start-eyesome .
     cp -v /etc/cron.daily/daily-eyesome-sun .
     cp -v /lib/systemd/system-sleep/systemd-wake-eyesome .
