@@ -88,6 +88,17 @@ update Sunrise and Sunset times as they haven't been initialized yet. You
 are also prompted to start the eyesome dameon because you haven't rebooted
 your computer yet. Go ahead and accept both these prompts. You should never
 see them again after the first time configuration.
+
+7. A new enhancement (June 3, 2020) are default sunrise and sunset files called:
+`/usr/local/bin/.eyesome-sunrise` and `/usr/local/bin/.eyesome-sunset`.
+After installation you will need to delee these for auto-configuration in
+Step 6. to take place. Otherwise real suntimes won't be updated until the next
+day. As was in original version, you can manually set the time for eyesome by 
+updating these plain text files. Do this if you don't want the internet knowing
+which city you are really in when you are using a VPN to hide your ISP's city.
+The file format is simple and the defaults are "7:00 am" for sunrise and
+"9:00 pm" for sunset. Use `cat /usr/local/bin/.eyesome-sun*` to see current
+sunrise and sunset times. A future version will make this more user-friendly.
     
 ### Note:
 
@@ -99,6 +110,15 @@ your download is intact and secure.
 You can use `sudo ./install.sh rm` to remove the eyesome programs. You can
 install them again later and your configuration files will still be intact.
 
+## Glitches
+
+Every now and then (once a month?) your system may inexplicably invoke `xrandr`
+and reset your system to 100% brightness and gamma (6500K color temperature). If 
+this happens simply run `sudo eyesome-cfg.sh` and click the Daytimne or Nighttime
+Test buttons. After the test eyesome is forced to wakeup and reset monitors to
+the current time of day settings. Do the same if you intentionally change
+settings in gnome-terminal or elsewhere and are ready to set them back to normal.
+
 ## Messages
 
 To see eyesome daemon messages the eaiest way is with the terminal command:
@@ -107,51 +127,51 @@ To see eyesome daemon messages the eaiest way is with the terminal command:
 
 You will see this from when your computer boots:
 
-    Oct 23 04:16:28 alien CRON[965]: (root) CMD (   /usr/local/bin/eyesome.sh)
-    Oct 23 04:16:28 alien eyesome[998]: Daemon: Launching /usr/local/bin/eyesome-dbus.sh daemon
-    Oct 23 04:16:28 alien eyesome[1014]: DBUS: Starting DBUS-Monitor using type=method_call, interface=org.freedesktop.ColorManager, path=/org/freedesktop/ColorManager, member=FindDeviceByProperty
+    Oct 23 04:16:28 CRON[965]: (root) CMD (   /usr/local/bin/eyesome.sh)
+    Oct 23 04:16:28 eyesome[998]: Daemon: Launching /usr/local/bin/eyesome-dbus.sh daemon
+    Oct 23 04:16:28 eyesome[1014]: DBUS: Starting DBUS-Monitor using type=method_call, interface=org.freedesktop.ColorManager, path=/org/freedesktop/ColorManager, member=FindDeviceByProperty
     
 You will see this from when you sign on (login):
 
-    Oct 23 04:16:35 alien eyesome[2107]: DBUS: Event Count: 5 over: 7 seconds
-    Oct 23 04:16:35 alien eyesome[2114]: DBUS: Waiting for user to log in, not waking up eyesome
-    Oct 23 04:16:48 alien eyesome[2465]: Daemon: Waited 20 seconds for rick to login.
-    Oct 23 04:16:53 alien eyesome[2908]: DBUS: Event Count: 27 over: 18 seconds
-    Oct 23 04:16:53 alien eyesome[2917]: DBUS: rick logged in 5 seconds, not waking eyesome
-    Oct 23 04:16:59 alien eyesome[4111]: Daemon: Login: Slept 2 seconds x 5 times.
+    Oct 23 04:16:35 eyesome[2107]: DBUS: Event Count: 5 over: 7 seconds
+    Oct 23 04:16:35 eyesome[2114]: DBUS: Waiting for user to log in, not waking up eyesome
+    Oct 23 04:16:48 eyesome[2465]: Daemon: Waited 20 seconds for rick to login.
+    Oct 23 04:16:53 eyesome[2908]: DBUS: Event Count: 27 over: 18 seconds
+    Oct 23 04:16:53 eyesome[2917]: DBUS: rick logged in 5 seconds, not waking eyesome
+    Oct 23 04:16:59 eyesome[4111]: Daemon: Login: Slept 2 seconds x 5 times.
 
 You will see this when cron runs daily jobs:
 
-    Oct 23 04:25:31 alien eyesome[2206]: Sun Times: https://www.timeanddate.com/sun/canada/edmonton.
-    Oct 23 04:25:32 alien eyesome[2278]: Wakeup: Called from eyesome-sun.sh.
+    Oct 23 04:25:31 eyesome[2206]: Sun Times: https://www.timeanddate.com/sun/canada/edmonton.
+    Oct 23 04:25:32 eyesome[2278]: Wakeup: Called from eyesome-sun.sh.
 
 You will see this when you suspend your home laptop and head off to work:
 
-    Oct 23 05:46:49 alien eyesome[26964]: Lid Open/Close: Wait 3 seconds to see if suspending
-    Oct 23 05:46:50 alien eyesome[27017]: DBUS: Event Count: 27 over: 5397 seconds
-    Oct 23 05:46:50 alien eyesome[27028]: Wakeup: Called from eyesome-dbus.sh.
-    Oct 23 05:46:50 alien eyesome[27079]: Wakeup: DBUS: Waiting 3 seconds to see if supending
-    Oct 23 05:46:52 alien eyesome[27170]: Lid Open/Close: DBUS responding, not waking eyesome
-    Oct 23 05:47:04 alien eyesome[28119]: Daemon: Monitor connect: Slept 2 seconds x 5 times.
-    Oct 23 05:47:04 alien eyesome[28122]: Daemon: Removed file: /tmp/eyesome-DBUS
-    Oct 23 05:47:06 alien eyesome[28308]: Wakeup: Creating /tmp/eyesome-is-suspending
+    Oct 23 05:46:49 eyesome[26964]: Lid Open/Close: Wait 3 seconds to see if suspending
+    Oct 23 05:46:50 eyesome[27017]: DBUS: Event Count: 27 over: 5397 seconds
+    Oct 23 05:46:50 eyesome[27028]: Wakeup: Called from eyesome-dbus.sh.
+    Oct 23 05:46:50 eyesome[27079]: Wakeup: DBUS: Waiting 3 seconds to see if supending
+    Oct 23 05:46:52 eyesome[27170]: Lid Open/Close: DBUS responding, not waking eyesome
+    Oct 23 05:47:04 eyesome[28119]: Daemon: Monitor connect: Slept 2 seconds x 5 times.
+    Oct 23 05:47:04 eyesome[28122]: Daemon: Removed file: /tmp/eyesome-DBUS
+    Oct 23 05:47:06 eyesome[28308]: Wakeup: Creating /tmp/eyesome-is-suspending
 
 You will see this when you return home from work:
 
-    Oct 23 16:55:11 alien eyesome[28511]: Lid Open/Close: Wait 3 seconds to see if suspending
-    Oct 23 16:55:11 alien eyesome[28578]: Wakeup: Called from suspend.
-    Oct 23 16:55:14 alien eyesome[28792]: DBUS: Event Count: 54 over: 40104 seconds
-    Oct 23 16:55:14 alien eyesome[28798]: Wakeup: Called from eyesome-dbus.sh.
-    Oct 23 16:55:14 alien eyesome[28804]: Wakeup: DBUS: Waiting 3 seconds to see if supending
-    Oct 23 16:55:14 alien eyesome[28807]: Lid Open/Close: System supending, not waking eyesome
-    Oct 23 16:55:17 alien eyesome[29319]: Wakeup: System supending, Cancel DBUS waking eyesome
-    Oct 23 16:55:26 alien eyesome[30689]: Daemon: Resuming: Slept 2 seconds x 5 times.
-    Oct 23 16:55:26 alien eyesome[30704]: Daemon: Removed file: /tmp/eyesome-is-suspending
-    Oct 23 16:55:26 alien eyesome[30715]: Daemon: Removed file: /tmp/eyesome-DBUS
-    Oct 23 16:59:48 alien eyesome[13909]: DBUS: Event Count: 51 over: 273 seconds
-    Oct 23 16:59:48 alien eyesome[13922]: Wakeup: Called from eyesome-dbus.sh.
-    Oct 23 16:59:49 alien eyesome[13965]: Wakeup: DBUS: Waiting 3 seconds to see if supending
-    Oct 23 17:00:03 alien eyesome[15222]: Daemon: Monitor connect: Slept 2 seconds x 5 times.
-    Oct 23 17:00:03 alien eyesome[15225]: Daemon: Removed file: /tmp/eyesome-DBUS
+    Oct 23 16:55:11 eyesome[28511]: Lid Open/Close: Wait 3 seconds to see if suspending
+    Oct 23 16:55:11 eyesome[28578]: Wakeup: Called from suspend.
+    Oct 23 16:55:14 eyesome[28792]: DBUS: Event Count: 54 over: 40104 seconds
+    Oct 23 16:55:14 eyesome[28798]: Wakeup: Called from eyesome-dbus.sh.
+    Oct 23 16:55:14 eyesome[28804]: Wakeup: DBUS: Waiting 3 seconds to see if supending
+    Oct 23 16:55:14 eyesome[28807]: Lid Open/Close: System supending, not waking eyesome
+    Oct 23 16:55:17 eyesome[29319]: Wakeup: System supending, Cancel DBUS waking eyesome
+    Oct 23 16:55:26 eyesome[30689]: Daemon: Resuming: Slept 2 seconds x 5 times.
+    Oct 23 16:55:26 eyesome[30704]: Daemon: Removed file: /tmp/eyesome-is-suspending
+    Oct 23 16:55:26 eyesome[30715]: Daemon: Removed file: /tmp/eyesome-DBUS
+    Oct 23 16:59:48 eyesome[13909]: DBUS: Event Count: 51 over: 273 seconds
+    Oct 23 16:59:48 eyesome[13922]: Wakeup: Called from eyesome-dbus.sh.
+    Oct 23 16:59:49 eyesome[13965]: Wakeup: DBUS: Waiting 3 seconds to see if supending
+    Oct 23 17:00:03 eyesome[15222]: Daemon: Monitor connect: Slept 2 seconds x 5 times.
+    Oct 23 17:00:03 eyesome[15225]: Daemon: Removed file: /tmp/eyesome-DBUS
 
 If you unplug one of your external monitors, or turn it off or on you will also see messages similar to above.
