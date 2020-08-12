@@ -16,6 +16,8 @@
 #       files but leave them in installation directory if user wants to
 #       manually copy them.
 
+#       Jun 13 2020 - Use cp -a to keep same file date and time.
+
 CopyFiles () {
 
     echo 
@@ -81,19 +83,19 @@ PublishFiles () {
     mkdir -p ~/eyesome
     cd  ~/eyesome
 
-    cp -v "$0" .                        # This script install.sh
-    cp -v /usr/local/bin/eyesome.sh .
-    cp -v /usr/local/bin/eyesome-cfg.sh .
-    cp -v /usr/local/bin/eyesome-src.sh .
-    cp -v /usr/local/bin/eyesome-sun.sh .
-    cp -v /usr/local/bin/wake-eyesome.sh .
-    cp -v /usr/local/bin/eyesome-dbus.sh .
+    cp -a -v "$0" .                        # This script install.sh
+    cp -a -v /usr/local/bin/eyesome.sh .
+    cp -a -v /usr/local/bin/eyesome-cfg.sh .
+    cp -a -v /usr/local/bin/eyesome-src.sh .
+    cp -a -v /usr/local/bin/eyesome-sun.sh .
+    cp -a -v /usr/local/bin/wake-eyesome.sh .
+    cp -a -v /usr/local/bin/eyesome-dbus.sh .
     # June 2, 2020 intentionally omit /usr/local/bin/.eyesome-sunrise (& set)
-    cp -v /etc/cron.d/start-eyesome .
-    cp -v /etc/cron.daily/daily-eyesome-sun .
-    cp -v /lib/systemd/system-sleep/systemd-wake-eyesome .
-    cp -v /etc/acpi/acpi-lid-eyesome.sh .
-    cp -v /etc/acpi/events/acpi-lid-event-eyesome .
+    cp -a -v /etc/cron.d/start-eyesome .
+    cp -a -v /etc/cron.daily/daily-eyesome-sun .
+    cp -a -v /lib/systemd/system-sleep/systemd-wake-eyesome .
+    cp -a -v /etc/acpi/acpi-lid-eyesome.sh .
+    cp -a -v /etc/acpi/events/acpi-lid-event-eyesome .
 
     md5sum \
         install.sh \

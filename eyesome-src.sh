@@ -10,7 +10,7 @@
 # NOTE: You do not have to specify directory because $PATH is searched.
 #       This will not work with shebang #!/bin/sh it MUST be #!/bin/bash
 
-# DATE: Feb 17, 2017. Modified: June 2, 2020.
+# DATE: Feb 17, 2017. Modified: June 7, 2020.
 
 # UPDT: May 18, 2020 Change test to '[[ $MonStatus != Enabled ]] && continue'
 #           to suppport new 'Paused' option. Test used to be '== Disabled'.
@@ -18,6 +18,13 @@
 #           color temperature constants and eyesome-cfg.sh file name. Add
 #           Preivew support with "Gam" parameter 1 in SetBrightness ().
 #       Jun 02, 2020 Set defaults: sunrise "7:00 am" and sunset "9:00 pm".
+#       Jun 07, 2020 For Brazil, Italy & France, etc. export LC_NUMERIC="C".
+#       Jul 06, 2020 Change location of: '/tmp/display-current-brightness'
+#           to '/usr/local/bin/.eyesome-percent' and change value from hardware
+#           adapter setting to percentage of sunlight. Rename variable from:
+#          'CurrentBrightnessFilename' to 'SunlightPercentFilename'.
+
+export LC_NUMERIC="C"   # Prevent commas in: `xrandr --gamma 1,00:1,00:1,00`
 
 OLD_IFS=$IFS
 IFS="|"
@@ -47,12 +54,12 @@ CFG_CURR_GAMMA_OFFSET=15
 ConfigFilename=/usr/local/bin/.eyesome-cfg
 SunsetFilename=/usr/local/bin/.eyesome-sunset
 SunriseFilename=/usr/local/bin/.eyesome-sunrise
+SunlightPercentFilename=/usr/local/bin/.eyesome-percent
 ParmFilename=/usr/local/bin/.eyesome-parm           # Future use temporary file
 
 # Programs
 EyesomeDaemon=/usr/local/bin/eyesome.sh
 EyesomeDbusDaemon=/usr/local/bin/eyesome-dbus.sh
-CurrentBrightnessFilename=/tmp/display-current-brightness
 CronStartEyesome=/etc/cron.d/start-eyesome
 CronSunHours=/etc/cron.daily/daily-eyesome-sun
 EyesomeSunProgram=/usr/local/bin/eyesome-sun.sh
@@ -567,9 +574,10 @@ SetBrightness () {
                    --brightness "$DisplayBrightness"
         fi
 
-        # Set current brightness display file (also used for lid close tracking)
-        [[ $MonNumber == "1" ]] && echo "$DisplayBrightness" > \
-                                        "$CurrentBrightnessFilename"
+        # Set current sunlight display file (also used for lid close tracking)
+        # July 6, 2020: moved into eyesome.sh and repurposed as sunlight %
+        #[[ $MonNumber == "1" ]] && echo "$DisplayBrightness" > \
+        #                                "$SunlightPercentFilename"
 
         # move monitor's new brightness & gamma for future write
         MonCurrGamma="$NewGamma"

@@ -1,9 +1,9 @@
-b950dc471341f195039389800b368cee  install.sh
-40ba5da098aec0b0dd6bb2d26d80eeea  eyesome.sh
-008268609c2f8612ac863bdde093f1b0  eyesome-cfg.sh
-524932849bd4fbdcab80dc292d6a0746  eyesome-src.sh
-4c0cd963dc2508e41d1a80a71741b6a5  eyesome-sun.sh
-54c1383851222167fcbc2010c5ac5214  wake-eyesome.sh
+7a2dd9abb08b483ef8869eb0c9117a71  install.sh
+bad3cd59ab685000f9193a1b2368b188  eyesome.sh
+6a7cde9a62832551dd06efe4588f1ba2  eyesome-cfg.sh
+d56d70ee03959df59d90dfc66a96ab86  eyesome-src.sh
+e248cc661393ec8da7ae3cc9160c888f  eyesome-sun.sh
+618f93b8d65b46323fc81d84fbaaff89  wake-eyesome.sh
 67f5c4b04b8e1227399e90f95669579c  eyesome-dbus.sh
 dfd135f2be19dd934d4d5e6f37e09121  .eyesome-sunrise
 67a27a11b18397d95ad1a905607aa70c  .eyesome-sunset

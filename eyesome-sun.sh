@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: August 29, 2019.
+# DATE: Feb 17, 2017. Modified: August 12, 2020.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -12,6 +12,12 @@
 # NOTE: eyesome.sh daemon starts during boot and will not see todays new
 #       Sunrise / Sunset time until it wakes up. Call wake-eyesome.sh to
 #       force immediate wake after new sun times are obtained.
+
+# UPDT: August 12, 2020 - Website returning extra string:
+#           $ cat /usr/local/bin/.eyesome-sunrise
+#           6:09 amspan class="comp
+#           $ cat /usr/local/bin/.eyesome-sunset
+#           9:07 pmspan class="comp
 
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 fCron=true              # Turn off xrandr requests to prevent email error msg.
@@ -34,6 +40,10 @@ while true; do
     wget -q -O- "$SunHoursAddress" \
         | grep -oE 'Sunset Today.{35}' | awk -F\> '{print $3}' | \
         tr --delete "<" > /tmp/eyesome-sunset
+
+    ## August 12, 2020 - Remove extra after am/pm
+    sed -i 's/m.*/m/' /tmp/eyesome-sunrise
+    sed -i 's/m.*/m/' /tmp/eyesome-sunset
 
     ## If network is down files will have one byte size
     size1=$(wc -c < /tmp/eyesome-sunrise)

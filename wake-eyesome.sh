@@ -7,7 +7,12 @@
 #       Called from command line for testing/debugging.
 #       Called by /usr/local/bin/eyesome-cfg.sh when Test button clicked.
 
-# DATE: August 2017. Modified: Oct 28, 2018.
+# DATE: August 2017. Modified: July 6, 2020.
+
+# UPDT: Jul 06, 2020 Change location of: '/tmp/display-current-brightness'
+#           to '/usr/local/bin/.eyesome-percent' and change value from hardware
+#           adapter setting to percentage of sunlight. Rename variable from:
+#          'CurrentBrightnessFilename' to 'SunlightPercentFilename'.
 
 # PARM: $1 = systemd State = "pre" or "post" for function
 #       $2 = systemd Function = "Suspend" or "Hibernate"
@@ -94,7 +99,7 @@ case $1/$2 in
     # lid was opened/closed. In this case Lightdm takes about 10 seconds
     # reseting some slower TVs/Monitors once or twice. Each reset causes
     # brightness and gamma to reset to 1.00.
-    [[ $3 == "" ]] || [[ $3 == "spam" ]] && rm -f "$CurrentBrightnessFilename"
+    [[ $3 == "" ]] || [[ $3 == "spam" ]] && rm -f "$SunlightPercentFilename"
     
     # Wake up eyesome.sh daemon by killing it's sleep command
     kill "$pID"  # kill sleep command forcing eyesome.sh to wakeup now.

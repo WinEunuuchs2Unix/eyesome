@@ -21,6 +21,12 @@
 #       May 18 2020: Last shutdown some monitors may have been overridden to
 #       pause eyesome daemon. If so renable brightness settings on start up.
 
+#       Jul 06, 2020 Change location of: '/tmp/display-current-brightness'
+#       to '/usr/local/bin/.eyesome-percent' and change value from hardware
+#       adapter setting to percentage of sunlight. Rename variable from:
+#       'CurrentBrightnessFilename' to 'SunlightPercentFilename'.
+
+
 ## ERRORS shellcheck source=/usr/local/bin/eyesome-src.sh
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 
@@ -74,17 +80,40 @@ SleepResetCheck () {
         
 } # SleepResetCheck
 
+SaveSunlightPercent () {
+
+    # $1 = $Percent
+
+    echo "$1 %" > "$SunlightPercentFilename"
+    fSunlightPercentSaved=true
+
+} # SaveSunlightPercent
+
 CalcTransitionSleep () {
 
     # PARM: $1 = Day = transition from nighttime to full daytime
     #          = Ngt = trannstion from daytime to full nighttime
     #       $2 = total seconds for transition
-    #       $3 = number of seconds into transition
+    #       $3 = number of seconds remaining for transition
 
-    # How far are we into transition? 0.999999 is not very far and
-    # 0.000001 is nearly at end. Yad uses 6 decimal places so eyesome
+    local Percent MathPer
+    # How far are we into transition? .999999 is not very far and
+    # .000001 is nearly at end. Yad uses 6 decimal places so eyesome
     # uses same.
     Percent=$( bc <<< "scale=6; ( $3 / $2 )" ) # WARN: `bc` takes .171 seconds
+
+    # Only record sunlight percentage once for all three monitors
+    if [[ $fSunlightPercentSaved == false ]] ; then
+        MathPer=${Percent:1:2}
+        # Leading 0 makes it octal so ditch it
+        [[ ${MathPer:0:1} -eq 0 ]] && MathPer="${MathPer:1:1}"
+        # Round up
+        [[ ${Percent:3:1} -gt 4 ]] && MathPer=$(( MathPer + 1 ))
+        # If night % noe set, if day subtract it from 100 %
+        [[ $1 == Day ]] && MathPer=$(( 100 - MathPer ))
+
+        SaveSunlightPercent "$MathPer"
+    fi
 
     SetBrightness "$1" "$Percent"
     SleepResetCheck "$UpdateInterval"
@@ -109,8 +138,8 @@ WaitForSignOn () {
     SpamOn=10       # Causes 10 iterations of 2 second sleep
     SpamContext="Login"
     TotalWait=0
-    [[ ! -f "$CurrentBrightnessFilename" ]] && rm -f \
-            "$CurrentBrightnessFilename"
+    # July 5, 2020, test below was for ! (not exist then remove)
+    [[ -f "$SunlightPercentFilename" ]] && rm -f "$SunlightPercentFilename"
 
     # Wait for user to sign on then get Xserver access for xrandr calls
     UserName=""
@@ -144,8 +173,8 @@ CheckForSpam () {
     # monitors to be reset once or twice and each reset changes 
     # brightnesss and gamma to 1.00. The reset period lasts many seconds.
 
-    if [[ ! -f "$CurrentBrightnessFilename" ]] ; then
-        echo "OFF" > "$CurrentBrightnessFilename" # Prevent infinite loop.
+    if [[ ! -f "$SunlightPercentFilename" ]] ; then
+        echo "OFF" > "$SunlightPercentFilename" # Prevent infinite loop.
         SpamOn=$SpamCount      # Causes 5 iterations of 2 second sleep
         # This works for kernel 4.13.0-36 because monitors auto reset to 1.00.
         # This doesn't work for 4.4.0-135 because monitors stay black until
@@ -174,6 +203,9 @@ LoopForever () {
 
 while true ; do
 
+    # Only record sunlight percentage once for all three monitors
+    fSunlightPercentSaved=false
+
     # Have listeners told us to spam display settings?
     CheckForSpam
 
@@ -198,6 +230,7 @@ while true ; do
             SleepUntilDay=$(( secSunrise - secNow ))
         fi
 
+        SaveSunlightPercent "0"
      	SleepResetCheck "$SleepUntilDay"
     	continue
     fi
@@ -214,6 +247,7 @@ while true ; do
     	# Sleep until Sunset transition time
      	SetBrightness Day        # Same function used by eyesome-cfg.sh
         SleepUntilNgt=$(( secNgtStart - secNow ))
+        SaveSunlightPercent "100"
      	SleepResetCheck "$SleepUntilNgt"
         continue
     fi
@@ -246,7 +280,7 @@ done # End of forever loop
 
 Main () {
 
-    Unpauselastsession
+    UnpauseLastSession
     ReadConfiguration
     StartListeners
     WaitForSignOn
