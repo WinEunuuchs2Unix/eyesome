@@ -5,7 +5,7 @@
 # DESC: Configuration for eyessome.sh's min/max values, sun rise/set time
 #       and transition minutes.
 # CALL: Called from terminal with `sudo` permissions.
-# DATE: Feb 17, 2017. Modified: June 3, 2020.
+# DATE: Feb 17, 2017. Modified: July 7, 2020.
 
 # UPDT: Oct 5 2018: Allow lower setting for monitor test from "5" to "1" second
 #       Add new field "Watch external monitor plugging / power switch?"
@@ -21,9 +21,18 @@
 #       buttons. Add monitor fields and Help button to Override window.
 #       Make $KEY randomized rather than hard coded for restart after crash.
 
-#       June 3 2020: Yetserday's version never published to github. Remove
+#       Jun 3 2020: Yetserday's version never published to github. Remove
 #       notebook --active-tab which doesn't work anyway and iconic reports to
 #       break things in Ubuntu 19.04.
+
+#       Jun 13 2020: Override button instructions on Main Menu. Add Sun Times
+#       tab to notebook for manual setting / daily override of sunrise and
+#       sunset times. When Overide exits set brightness to current time.
+
+#       Jul 07 2020: Old bug when $Retn not global then time remaining countdown
+#       when nothing clicked causes exit when countdown ends.
+
+#       May 09, 2021 Support for German and Russian locale date formats
 
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
@@ -70,10 +79,11 @@ res1=$(mktemp --tmpdir iface1.XXXXXXXX) # Notebook Overview Page (Tab 1)
 res2=$(mktemp --tmpdir iface2.XXXXXXXX) # Notebook Monitor 1 Page (Tab 2)
 res3=$(mktemp --tmpdir iface3.XXXXXXXX) # Notebook Monitor 2 Page (Tab 3)
 res4=$(mktemp --tmpdir iface4.XXXXXXXX) # Notebook Monitor 3 Page (Tab 4)
+res5=$(mktemp --tmpdir iface4.XXXXXXXX) # Notebook Sun times Page (Tab 5)
 
 Cleanup () {
     # Remove temporary files
-    rm -f "$res1" "$res2" "$res3" "$res4"
+    rm -f "$res1" "$res2" "$res3" "$res4" "$res5"
     IFS=$OLD_IFS;                       # Restore Input File Separator
 } # Cleanup
 
@@ -139,16 +149,47 @@ AddEmptyFields () {
 
 } # AddEmptyFields
 
+
+MakeHourMin () {
+    # Assumes time passed in "$3" is valid
+    # Declare reference to argument 1 & 2 provided (Bash 4.3 or greater)
+    declare -n Hour=$1      # 1-12
+    declare -n Min=$2       # 0-59
+    Time="$3"               # Format: "hh:mm xm" where x='a' or 'p'
+
+    Major="${Time%% *}"    # Strip of ' xm' = 'hh:mm'
+    Hour="${Major%%:*}"    # Get left ':'   = 'hh'
+    Min="${Major##*:}"     # Get right ':'  = 'mm'
+    #echo "Time: $Time  Major: $Major  Hour: $Hour  Min: $Min"
+} # MakeHourMin
+
+
 EditConfiguration () {
 
     # Not enough room in panel anymore for:
     #   Set internval between 5 and 300 seconds (5 minutes).
     #   15 to 60 seconds should provide the best results.
 
-    local ButnRefresh ButnSave
+    local Retn ButnRefresh=10 ButnSave=20
 
-    ButnRefresh=10
-    ButnSave=20
+    # Prevent eyesome daemon from changing brightness/gamma while configuration
+    # is being edited. This allows other programs to change settings while
+    # this function is running. The Override () function does same thing.
+    PauseMonitors
+
+    # Test if files exist and have valid content, if not use 7:00 am / 9:00 pm
+    if [[ -e "$SunriseFilename" && -e "$SunriseFilename" ]] ; then
+        NetSunrise="$(cat $SunriseFilename)"
+        NetSunset="$(cat $SunsetFilename)"
+    else
+        NetSunrise="7:00 am"
+        NetSunset="9:00 pm"
+    fi
+
+    # Variables must be global for called functions to see
+    # Note 'Make' functions take variable name , not contents using $
+    MakeHourMin SunriseHour SunriseMinute "$NetSunrise"
+    MakeHourMin SunsetHour  SunsetMinute  "$NetSunset"
 
     # Loop while BTN calls bash -c and kills notebook dialog
     while true ; do # Dummy loop, always exists after first time.
@@ -156,59 +197,91 @@ EditConfiguration () {
         # General notebook page
         yad --plug=$KEY --tabnum=1 --form \
             --field="
-The web page with sunrise/sunset hours must begin with
-https://www.timeanddate.com/sun/ and followed by your
-country/city name.
+The web page with sunrise/sunset hours must begin
+with <b>https://www.timeanddate.com/sun/</b> and 
+followed by your country/city name.
 
-For well-known cities it might only contain your city
-name or even just a number.  Normally the correct web
-address is found automatically.  If not, navigate to
-www.timeanddate.com and search for your city name. 
-Then copy the browser's web address and paste it below:\n:TXT" \
+Well known cities might only contain your city
+name or just a number. Usually the correct web
+address is found automatically.  If not, navigate
+to www.timeanddate.com and search for your city. 
+Copy browser's web address and paste it below:\n:TXT" \
             "${CfgArr[CFG_SUNCITY_NDX]}" \
             --field="
-The brightness update interval is entered in seconds.
-A longer update interval saves computer resources.  An 
-interval too long will give noticable brightness and
-gamma adjustments that can be distracting.:
+Transition brightness/gamma interval in
+seconds. Longer interval saves resources.
+If interval is longer noticable brightness 
+and gamma adjustments occur. 60 seconds
+is a good compromise::NUM" \
+            "${CfgArr[CFG_SLEEP_NDX]}"!5..300!1!0 \
+            --field="Transition minutes after sunrise::NUM" \
+            "${CfgArr[CFG_AFTER_SUNRISE_NDX]}"!0..180!1!0 \
+            --field="Transition minutes before sunset::NUM" \
+            "${CfgArr[CFG_BEFORE_SUNSET_NDX]}"!0..180!1!0 \
+            --field="
+Test button duration. 1 to 20 seconds.:
 :NUM" \
-        "${CfgArr[CFG_SLEEP_NDX]}"!5..300!1!0 \
-        --field="Transition minutes after sunrise to full brightness::NUM" \
-        "${CfgArr[CFG_AFTER_SUNRISE_NDX]}"!0..180!1!0 \
-        --field="Transition minutes before sunset to begin dimming::NUM" \
-        "${CfgArr[CFG_BEFORE_SUNSET_NDX]}"!0..180!1!0 \
-        --field="
-Monitor test button duration in seconds. You can enter
-1 to 20 seconds. The test may be interupted by eyesome
-transition if testing after sunrise and before sunset.:
-:NUM" \
-        "${CfgArr[CFG_TEST_SECONDS_NDX]}"!1..20!1!0 \
-        --field="Watch external monitor plugging / power switching:CHK" \
-        "${CfgArr[CFG_DBUS_MONITOR_NDX]}" \
+            "${CfgArr[CFG_TEST_SECONDS_NDX]}"!1..20!1!0 \
+            --field="Watch external monitor plugging / power switching:CHK" \
+            "${CfgArr[CFG_DBUS_MONITOR_NDX]}" \
                      > "$res1" &
 
-    # Monitor 1 notebook page
-    BuildMonitorPage "$CFG_MON1_NDX"
-    yad --plug=$KEY --tabnum=2 --form \
-        "${aMonPage[@]}" \
-        > "$res2" &
+        # Monitor 1 notebook page
+        BuildMonitorPage "$CFG_MON1_NDX"
+        yad --plug=$KEY --tabnum=2 --form \
+            "${aMonPage[@]}" \
+            > "$res2" &
 
-    # Monitor 2 notebook page
-    BuildMonitorPage "$CFG_MON2_NDX"
-    yad --plug=$KEY --tabnum=3 --form \
-        "${aMonPage[@]}" \
-        > "$res3" &
+        # Monitor 2 notebook page
+        BuildMonitorPage "$CFG_MON2_NDX"
+        yad --plug=$KEY --tabnum=3 --form \
+            "${aMonPage[@]}" \
+            > "$res3" &
 
-    # Monitor 3 notebook page
-    BuildMonitorPage "$CFG_MON3_NDX"
-    yad --plug=$KEY --tabnum=4 --form \
-        "${aMonPage[@]}" \
-        > "$res4" &
+        # Monitor 3 notebook page
+        BuildMonitorPage "$CFG_MON3_NDX"
+        yad --plug=$KEY --tabnum=4 --form \
+            "${aMonPage[@]}" \
+            > "$res4" &
 
-        # run main dialog
+        Indent="                        "
+        # Sun times
+        yad --plug=$KEY --tabnum=5 --form \
+            --field="
+Although sunrise and sunset times are automatically 
+retrieved from internet, you can enter them here.
+
+Do this if you don't have internet access or don't
+want to use the internet for getting sun times.
+Another example is when curtains closed for movie
+watching or extremely dark storm clouds are out at
+3:00 pm. In this case set sunset time to 2:00 pm
+and your monitors will instantly dim for nightttime
+settings when you click <b><i>Save</i></b> button.
+
+Tomorrow sun times are automatically retrieved via
+internet (if country/city provided) and changes 
+made here are reset. Sun times are in AM/PM format 
+not 24 hour clock. 12 AM is before 1 AM and 12 PM
+is before 1 PM.:LBL" "" \
+            --field="$Indent Sunrise setting::RO" \
+            "$NetSunrise" \
+            --field="$Indent Sunset setting::RO" \
+            "$NetSunset" \
+            --field="$Indent Sunrise Hour 1-12::NUM" \
+            "$SunriseHour"!1..12!1!0 \
+            --field="$Indent Sunrise Minute 0-59:    :NUM" \
+            "$SunriseMinute"!0..59!1!0 \
+            --field="$Indent Sunset Hour 1-12::NUM" \
+            "$SunsetHour"!1..12!1!0 \
+            --field="$Indent Sunset Minute 0-59::NUM" \
+            "$SunsetMinute"!0..59!1!0 \
+                     > "$res5" &
+
+        # run main dialog that swallows tabs
         #  --image=gnome-calculator
         yad --notebook --key=$KEY --tab="General" --tab="Monitor 1" \
-            --tab="Monitor 2" --tab="Monitor 3" \
+            --tab="Monitor 2" --tab="Monitor 3" --tab="Sun times" \
             --image=sleep --image-on-top "$GEOMETRY" \
             --title="eyesome setup" --width=400 \
             --text="<big><b>eyesome</b></big> - edit configuration" \
@@ -220,6 +293,7 @@ transition if testing after sunrise and before sunset.:
 
         [[ $Retn == "$ButnSave" ]] && break        # Save changes
 
+        UnPauseMonitors
         return      # Quit button, Escape Key, Alt-F4, X close window
 
     done
@@ -239,6 +313,25 @@ transition if testing after sunrise and before sunset.:
     AddEmptyFields 4
     echo "" >> "$ConfigFilename" # Add EOF (new line) marker
 
+    # Save sunrise/sunset files
+    local Arr
+    IFS='|' read -ra Arr < "$res5"
+
+    # Skip over Arr[0]=empty, Arr[1]=Sunrise time, Arr[2]=Sunset time
+    NetSunrise=$(date -d "${Arr[3]%%.*}:${Arr[4]%%.*} am" +"%I:%M %P")
+    NetSunset=$(date -d "${Arr[5]%%.*}:${Arr[6]%%.*} pm" +"%I:%M %P")
+
+    # Don't allow invalid times (date function returns zero length variable)
+    [[ "${#NetSunrise}" == 0 ]] && Netsunrise="7:00 am"
+    [[ "${#NetSunset}"  == 0 ]] &&  Netsunset="9:00 pm"
+
+    echo "$NetSunrise" > "$SunriseFilename"     # Save Sunrise time
+    echo "$NetSunset"  > "$SunsetFilename"      # Save Sunset time
+
+    # We do NOT want to unpause monitors because we will override the
+    # Enabled/Disabled settings the user just saved!
+    # UnPauseMonitors
+
 } # EditConfiguration
 
 MainMenu () {
@@ -254,9 +347,24 @@ MainMenu () {
         SecondsToUpdate="${CfgArr[$CFG_SLEEP_NDX]%.*}"
     fi
 
-    NextDate=$(date --date="$SecondsToUpdate seconds") # Sleep seconds Epoch
-    NextCheckTime=$(date --date="$NextDate" +'%I:%M:%S %p') # Now + Sleep
-    LastCheckTime=$(date +'%I:%M:%S %p') # Now
+    # May 9, 2021 Use epcoh seconds to correct error:
+    #    date: invalid date ‘So 9. Mai 07:32:52 MDT 2021’
+    NextDate=$(date --date="$SecondsToUpdate seconds" +%s) # Sleep seconds Epoch
+
+    # Germany has 24 hour clock: https://stackoverflow.com/a/60335820/6929343
+    # So am/pm will be blank so: Last: 08:00:00 AM / Next: 07:00:00 PM
+    #                   becomes: Last: 08:00:00    / Next: 07:00:00
+    var=$(date +'%I:%M:%S %p')              # Create test date
+    var="${var%"${var##*[![:space:]]}"}"    # Remove trailing space(s)
+    if [[ "${#var}" -gt 8 ]] ; then
+        # Test date longer than 8 then AM/PM is supported use 12 hour clock
+        NextCheckTime=$(date --date=@"$NextDate" +'%I:%M:%S %p') # Now + Sleep
+        LastCheckTime=$(date +'%I:%M:%S %p') # Now
+    else
+        # Test date <= 8 then AM/PM is NOT supported use 24 hour clock
+        NextCheckTime=$(date --date=@"$NextDate" +'%H:%M:%S') # Now + Sleep
+        LastCheckTime=$(date +'%H:%M:%S') # Now
+    fi
 
     # Getting dozens of Green Beakers (yad icons) in taskbar when left running
     # and auto updating every 15 seconds. Use --skip-taskbar
@@ -291,8 +399,9 @@ the monitors will look like in daytime. The same $TestSeconds second
 test can be used for nighttime using the <b><i>Nighttime</i></b> button.
 
 Click the <b><i>Override</i></b> button below to pause eyesome daemon.
-You can override color temperature and brightness for all
-monitors. Override on cloudy days or curtains closed.
+A color temperature slider can be used to calculate red,
+green and blue gamma channels. Gamma in turn can be
+applied to the configuration for any monitor.
 
 Click the <b><i>Quit</i></b> button to close this program.
 
@@ -349,11 +458,6 @@ TestBrightness () {
 
 } # TestBrightness
 
-: <<'END'
-/* ----------------------------------------------------------------------------
-    May 18, 2020 - mmm Python code for Color Temperature converted to bash
----------------------------------------------------------------------------- */
-END
 
 math () {
 
@@ -416,7 +520,7 @@ TempToGamma () {
 
     local srch_temp i red green blue temp
     local last_red last_green last_blue last_temp
-    local full_gap multiplier r g b
+    local full_gap multiplier r g b Retn
     
     # global variables set are Red, Green, Blue
 
@@ -465,9 +569,6 @@ GammaToTemp() {
     # Based on gamma_to_temp(srch_gamma) from mmm Python Program
     # Convert Gamma to Temp (normal and NOT Xrandr Inverted Gamma passed)
     
-    # TESTING: Use invalid like: `xrandr --output DP-1-1 --gamma 0.0:9.0:5.0`
-    #                            `xrandr --output DP-1-1 --gamma 2.8:0.0:0.3`
-
     # Returns $Temperature already defined globally
     # Requires $Red $Green and $Blue passed as $1 $2 $3
 
@@ -640,11 +741,12 @@ gamma settings ('$XrandrGammaString') to eyesome's configuration file?   " \
 
 } # ConfirmUpdate
 
+
 OverrideHelp () {
 
     # Parent window stays active and this function is called in sub-shell.
     # Parent variables are not visible here unless they are exported.
-
+    Tip="Use Escape key, Alt+F4 or click X in top window coner to close."
     yad --form --mouse \
         --image=preferences-desktop-screensaver \
         --window-icon=preferences-desktop-screensaver \
@@ -686,23 +788,20 @@ button. This permanently updates eyesome's configuration file.
 
 <b>NOTE:</b> The 'xrandr --gamma string' appears as an input field but it is not. The 
 string can be copied into the clipboard and pasted into the terminal.
-
 :LBL" \
-        --field="Use Escape key, Alt+F4 or click Quit to close this window.:RO" " " \
-        --button="_Quit:" "$ButnQuit" \
+        --field="<b>Tip:</b> $Tip:RO" " " \
+        --button="_Back:$ButnQuit" \
         2>/dev/null
 
     # At least one Read Only (:RO) field is needed or window goes super large
 
 } # OverrideHelp
-
 export -f OverrideHelp      # Make available to OVerride functions Help button
-
 
 Override () {
 
-    local ButnGet ButnColor ButnPreview ButnApply aMonNdx Result Ret Arr
-    local EmptyString cbMonitor cbDayNight
+    local ButnGet ButnColor ButnPreview ButnApply aMonNdx Result Arr
+    local EmptyString cbMonitor cbDayNight Retn
 
     ButnGet=10
     ButnColor=20
@@ -739,12 +838,10 @@ Override () {
 
         # Build monitor number and Day/Night Choice Boxes for yad
         cbMonitor="1!2!3"
-        # Set default highlighted monitor (denoted by ^)
         cbMonitor="${cbMonitor/$OverrideMonitor/\^$OverrideMonitor}"
-
         cbDayNight="Day!Night"
-        # Set default highlighted time (denoted by ^)
         cbDayNight="${cbDayNight/$OverrideDayNight/\^$OverrideDayNight}"
+        # Set default highlighted time (denoted by ^)
 
         Result=$(yad --form "$GEOMETRY" \
             --image=preferences-desktop-screensaver \
@@ -766,12 +863,12 @@ Override () {
             --field="Blue gamma channel::RO" "$Blue" \
             --field="_Help using this window:FBTN" \
                     'bash -c "OverrideHelp"'  \
-            --field="xrandr --gamma string: " "$XrandrGammaString" \
+            --field="xrandr --gamma string:" "$XrandrGammaString" \
             --button="_Get:$ButnGet" \
             --button="_Color:$ButnColor" \
             --button="_Preview:$ButnPreview" \
             --button="_Apply:$ButnApply" \
-            --button="_Quit:$ButnQuit" \
+            --button="_Back:$ButnQuit" \
             2>/dev/null)
 
         Retn="$?"       # Button return value, 254 = Escape or Alt+F4
@@ -866,7 +963,7 @@ CheckSunHours () {
     [[ $fSunHoursCheckedOnce == true ]] && return
     fSunHoursCheckedOnce=true
 
-    ButnRetrieve=10
+    local Retn ButnRetrieve=10
 
     while true ; do
 
@@ -936,7 +1033,7 @@ CheckEyesomeDaemon () {
     [[ $fEyesomeCheckedOnce == true ]] && return
     fEyesomeCheckedOnce=true
 
-    ButnStart=10
+    local Retn ButnStart=10
 
     while true ; do
 
@@ -987,6 +1084,8 @@ Click the <b><i>Start</i></b> button below to start '$EyesomeDaemon'.:LBL" \
 #            MAINLINE             #
 ###################################
 
+Retn=""         # Define globally. Old bug encountered July 6, 2020.
+
 Main () {
 
     # ReadConfiguration # This is already done somewhere, but where?
@@ -1007,7 +1106,7 @@ Main () {
         sleep .5
 
         MainMenu
-        
+
         if [[ $Retn == "$ButnEscape" || $Retn == "$ButnQuit" ]] ; then
             # At this point clicked Quit button or Escape or Window X'd.
             break
@@ -1015,15 +1114,18 @@ Main () {
             EditConfiguration
             CheckSunHours
             CheckEyesomeDaemon
-            # monitor settings may have changed, so wake up eyesome
+            # monitor changes were paused, so wake up eyesome
             $WakeEyesome post eyesome-cfg.sh nosleep
         elif [[ $Retn == "$ButnDay" ]] ; then
             TestBrightness Day
         elif [[ $Retn == "$ButnNight" ]] ; then
             TestBrightness Ngt
             # TODO: Last brightness/gamma isn't reset after nighttime test
+            # Jun 13 2020: Don't know what above means can't find problem today
         elif [[ $Retn == "$ButnOverride" ]] ; then
             Override
+            # monitor changes were paused, so wake up eyesome
+            $WakeEyesome post eyesome-cfg.sh nosleep
         elif [[ $Retn == "$ButnRemaining" || $Retn == "70" ]] ; then
             continue    # 70 = menu times out when eyesome daemon wakes
         else
