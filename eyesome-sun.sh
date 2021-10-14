@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: August 12, 2020.
+# DATE: Feb 17, 2017. Modified: October 13, 2021.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -19,6 +19,13 @@
 #           $ cat /usr/local/bin/.eyesome-sunset
 #           9:07 pmspan class="comp
 
+#       October 13, 2021 - Website returning 24 hour clock for some:
+#           6:41span class="comp
+#           18:46span class="comp
+#           Change code to split on : where left side is hours and right
+#           side is minutes (2 digits) + characters to drop. Then for sunset
+#           if hours > 12 subtract 12 and add " pm" to end of string.
+
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 fCron=true              # Turn off xrandr requests to prevent email error msg.
 ReadConfiguration       # Get $SunCity (also calls xrandr for monitor list)
@@ -31,9 +38,20 @@ retry_sleep=60          # 1 minutes first time, then doubling each loop
 
 log "$SunHoursAddress."
 
+
+# October 13, 2021 - Support 24 hour clock
+Sun=""
+SplitHourMin() {
+    Hour="${Sun%%:*}"    # Get left ':'   = 'hh'
+    Min="${Sun##*:}"     # Get right ':'  = 'mm_StuffToDrop'
+    Min="${Min:0:2}"     # Get first 2    = 'mm'
+} # SplitHourMin
+
+
 while true; do
 
     ### "-q"= quiet, "-O-" pipe output
+    echo $SunHoursAddress
     wget -q -O- "$SunHoursAddress" \
         | grep -oE 'Sunrise Today.{35}' | awk -F\> '{print $3}' | \
         tr --delete "<" > /tmp/eyesome-sunrise
@@ -50,6 +68,21 @@ while true; do
     size2=$(wc -c < /tmp/eyesome-sunset)
 
     if [[ $size1 -gt 1 ]] && [[ $size2 -gt 1 ]] ; then
+
+        ## October 13, 2021 - Massage for 24 hour clock
+        Sun=$(cat /tmp/eyesome-sunrise)
+        SplitHourMin
+        echo "$Hour:$Min am" > /tmp/eyesome-sunrise
+
+        Sun=$(cat /tmp/eyesome-sunset)
+        SplitHourMin
+        if [[ "$Hour" -gt 12 ]] ; then
+            Hour=$((Hour - 12))
+        fi
+        echo "$Hour:$Min pm" > /tmp/eyesome-sunset
+        cat /tmp/eyesome-sunset
+
+        # Original code before 24-hour clock is below
         cp /tmp/eyesome-sunrise "$SunriseFilename"
         cp /tmp/eyesome-sunset  "$SunsetFilename"
         chmod 666 "$SunriseFilename"
