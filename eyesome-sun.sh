@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: October 13, 2021.
+# DATE: Feb 17, 2017. Modified: October 14, 2021.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -26,9 +26,11 @@
 #           side is minutes (2 digits) + characters to drop. Then for sunset
 #           if hours > 12 subtract 12 and add " pm" to end of string.
 
+#       October 14, 2021 - Remove "echo" used in testing yesterday.
+
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 fCron=true              # Turn off xrandr requests to prevent email error msg.
-ReadConfiguration       # Get $SunCity (also calls xrandr for monitor list)
+ReadConfiguration       # Get $SunHoursAddress, $SunriseFilename, etc.
 
 sleep 120               # Give user 2 minutes to sign-on. We don't want our
                         # wakeup to clash with eyesome-dbus.sh, acpi-lid-
@@ -50,8 +52,7 @@ SplitHourMin() {
 
 while true; do
 
-    ### "-q"= quiet, "-O-" pipe output
-    echo $SunHoursAddress
+    # "-q"= quiet, "-O-" pipe output
     wget -q -O- "$SunHoursAddress" \
         | grep -oE 'Sunrise Today.{35}' | awk -F\> '{print $3}' | \
         tr --delete "<" > /tmp/eyesome-sunrise
