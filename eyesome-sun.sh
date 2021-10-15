@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: October 14, 2021.
+# DATE: Feb 17, 2017. Modified: October 15, 2021.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -26,7 +26,7 @@
 #           side is minutes (2 digits) + characters to drop. Then for sunset
 #           if hours > 12 subtract 12 and add " pm" to end of string.
 
-#       October 14, 2021 - Remove "echo" used in testing yesterday.
+#       October 15, 2021 - Remove "echo" used in testing yesterday.
 
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 fCron=true              # Turn off xrandr requests to prevent email error msg.
@@ -81,7 +81,6 @@ while true; do
             Hour=$((Hour - 12))
         fi
         echo "$Hour:$Min pm" > /tmp/eyesome-sunset
-        cat /tmp/eyesome-sunset
 
         # Original code before 24-hour clock is below
         cp /tmp/eyesome-sunrise "$SunriseFilename"
