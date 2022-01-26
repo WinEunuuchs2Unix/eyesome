@@ -1,7 +1,7 @@
 # eyesome
 
 Eyesome will control up to three monitors including hardware laptop display.
-Each day sunrise and sunset times are automatically retrievedfor your city.
+Each day sunrise and sunset times are automatically retrieved for your city.
 Configure Daytime and Nighttime brightness and gamma levels for your monitors.
 Configure the transition duration after sunrise and before sunset to gradually
 adjust brightness and gamma levels so changes are not noticable.
@@ -83,7 +83,7 @@ sunrise and sunset times from https://www.timeanddate.com.
 
     `sudo eyesome-cfg.sh`
     
-6. Note after saving configuration for the frist time you are prompted to 
+6. Note after saving configuration for the first time you are prompted to 
 update Sunrise and Sunset times as they haven't been initialized yet. You
 are also prompted to start the eyesome dameon because you haven't rebooted
 your computer yet. Go ahead and accept both these prompts. You should never
