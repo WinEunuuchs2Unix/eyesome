@@ -34,6 +34,11 @@
 
 #       May 09, 2021 Support for German and Russian locale date formats
 
+#       Aug 16, 2026 - www.timeanddate.com is blocking `wget -q-O- ...`
+#           so switch to https://sunrise-sunset.org instead. Last sunrise was 
+#           6:22 am and now it's 6:02 am. It broke on 2026-04-20 and caused
+#           `run-parts /etc/cron.daily` to run over 6 hours non-suspended.
+
 source eyesome-src.sh # Common code for eyesome___.sh bash scripts
 
 if [[ $(id -u) != 0 ]]; then # root powers needed to call this script
@@ -198,14 +203,15 @@ EditConfiguration () {
         yad --plug=$KEY --tabnum=1 --form \
             --field="
 The web page with sunrise/sunset hours must begin
-with <b>https://www.timeanddate.com/sun/</b> and 
-followed by your country/city name.
+with either: <b>https://www.timeanddate.com/sun/</b> 
+or preferred: <b>https://www.sunrise-sunset.org/</b>
+and then followed by your country/city name.
 
 Well known cities might only contain your city
 name or just a number. Usually the correct web
-address is found automatically.  If not, navigate
-to www.timeanddate.com and search for your city. 
-Copy browser's web address and paste it below:\n:TXT" \
+address is found automatically.  If not, navigate to
+<b>https://www.sunrise-sunset.org/</b> and find your city. 
+Then copy the browser's address and paste it below:\n:TXT" \
             "${CfgArr[CFG_SUNCITY_NDX]}" \
             --field="
 Transition brightness/gamma interval in

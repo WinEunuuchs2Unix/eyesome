@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: October 15, 2021.
+# DATE: Feb 17, 2017. Modified: August 16, 2026.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -28,13 +28,22 @@
 
 #       October 15, 2021 - Remove "echo" used in testing yesterday.
 
+#       August 16, 2026 - www.timeanddate.com is blocking `wget -q-O- ...`
+#           so switch to https://sunrise-sunset.org instead. Last sunrise was 
+#           6:22 am and now it's 6:02 am so broken before 2026-06-21. Caused
+#           `run-parts /etc/cron.daily` to run over 6 hours non-suspended.
+
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
 fCron=true              # Turn off xrandr requests to prevent email error msg.
 ReadConfiguration       # Get $SunHoursAddress, $SunriseFilename, etc.
 
-sleep 120               # Give user 2 minutes to sign-on. We don't want our
+if [[ -n "$1" && "$1" == "nosleep" ]]; then
+    :                   # Do nothing
+else
+    sleep 120           # Give user 2 minutes to sign-on. We don't want our
                         # wakeup to clash with eyesome-dbus.sh, acpi-lid-
                         # eyesome.sh or login activity. All who spam.
+fi
 
 retry_sleep=60          # 1 minutes first time, then doubling each loop
 
@@ -52,18 +61,35 @@ SplitHourMin() {
 
 while true; do
 
-    # "-q"= quiet, "-O-" pipe output
-    wget -q -O- "$SunHoursAddress" \
-        | grep -oE 'Sunrise Today.{35}' | awk -F\> '{print $3}' | \
-        tr --delete "<" > /tmp/eyesome-sunrise
-    wget -q -O- "$SunHoursAddress" \
-        | grep -oE 'Sunset Today.{35}' | awk -F\> '{print $3}' | \
-        tr --delete "<" > /tmp/eyesome-sunset
+    if [[ "$SunHoursAddress" == *"timeanddate.com"* ]]; then
+        # "-q"= quiet, "-O-" pipe output
+        wget -q -O- "$SunHoursAddress" \
+            | grep -oE 'Sunrise Today.{35}' | awk -F\> '{print $3}' | \
+            tr --delete "<" > /tmp/eyesome-sunrise
+        wget -q -O- "$SunHoursAddress" \
+            | grep -oE 'Sunset Today.{35}' | awk -F\> '{print $3}' | \
+            tr --delete "<" > /tmp/eyesome-sunset
 
-    ## August 12, 2020 - Remove extra after am/pm
-    sed -i 's/m.*/m/' /tmp/eyesome-sunrise
-    sed -i 's/m.*/m/' /tmp/eyesome-sunset
+        ## August 12, 2020 - Remove extra after am/pm
+        sed -i 's/m.*/m/' /tmp/eyesome-sunrise
+        sed -i 's/m.*/m/' /tmp/eyesome-sunset
 
+    elif [[ "$SunHoursAddress" == *"sunrise-sunset.org"* ]]; then
+        # 2026-08-16 support sunrise-sunset.org `-m 1` = 1st line Today
+        # grep = Sunrise time: <strong class="time">6:14:02 am
+        # sed1 = 6:14:02 am
+        # sed2 = 6:14 am
+        wget -q -O- "$SunHoursAddress" \
+            | grep -oE -m 1 "Sunrise time:.{32}" | sed 's/.*>//' | \
+            sed 's/.*>//' > /tmp/eyesome-sunrise
+        wget -q -O- "$SunHoursAddress" \
+            | grep -oE -m 1 "Sunset time:.{32}" | sed 's/.*>//' | \
+            sed 's/.*>//' > /tmp/eyesome-sunset
+    else
+        log "Neither www.timeanddate.com nor www.sunrise-sunset.org"
+        exit 1
+    fi
+    
     ## If network is down files will have one byte size
     size1=$(wc -c < /tmp/eyesome-sunrise)
     size2=$(wc -c < /tmp/eyesome-sunset)
