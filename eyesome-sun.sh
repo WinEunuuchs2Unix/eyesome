@@ -4,7 +4,7 @@
 # PATH: /usr/local/bin
 # DESC: Get today's sunrise and sunset times from internet.
 # CALL: /etc/cron.daily/daily-eyesome-sun
-# DATE: Feb 17, 2017. Modified: August 16, 2026.
+# DATE: Feb 17, 2017. Modified: August 17, 2026.
 
 # PARM: $1 if "nosleep" and internet fails then return with exit status 1
 #       If not then keep retrying doubling sleep times between attempts.
@@ -28,9 +28,9 @@
 
 #       October 15, 2021 - Remove "echo" used in testing yesterday.
 
-#       August 16, 2026 - www.timeanddate.com is blocking `wget -q-O- ...`
-#           so switch to https://sunrise-sunset.org instead. Last sunrise was 
-#           6:22 am and now it's 6:02 am so broken before 2026-06-21. Caused
+#       August 17, 2026 - www.timeanddate.com is blocking `wget -q-O- ...`
+#           so switch to https://sunrise-sunset.org instead. Sunrise on file 
+#           was 6:22 am but it's 6:15 am. It broke on 2026-04-20 and caused
 #           `run-parts /etc/cron.daily` to run over 6 hours non-suspended.
 
 source eyesome-src.sh   # Common code for eyesome___.sh bash scripts
@@ -81,10 +81,10 @@ while true; do
         # sed2 = 6:14 am
         wget -q -O- "$SunHoursAddress" \
             | grep -oE -m 1 "Sunrise time:.{32}" | sed 's/.*>//' | \
-            sed 's/.*>//' > /tmp/eyesome-sunrise
+            sed 's/:[0-9][0-9] / /' > /tmp/eyesome-sunrise
         wget -q -O- "$SunHoursAddress" \
             | grep -oE -m 1 "Sunset time:.{32}" | sed 's/.*>//' | \
-            sed 's/.*>//' > /tmp/eyesome-sunset
+            sed 's/:[0-9][0-9] / /' > /tmp/eyesome-sunset
     else
         log "Neither www.timeanddate.com nor www.sunrise-sunset.org"
         exit 1
